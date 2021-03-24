@@ -33,6 +33,7 @@ float reverseFloatEndianess(float inFloat) {
 
 #define CALC_MODE GFX_PACK_PASSTHROUGH
 
+
 #if CALC_MODE == GFX_PACK_PASSTHROUGH
 struct inputData {
     byte status;
@@ -147,7 +148,7 @@ void InitializeCemuHooking() {
 }
 
 int countdownPrint = 0;
-float distanceMultiplier = 1.0f;
+constexpr float const_HeadPositionalMovementSensitivity = 2.5f; // This would probably be different from the third-person perspective then the first-person perspective.
 
 void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
     UNUSED(leftScreen);
@@ -207,13 +208,13 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
         cameraData.headsetPosition.y = middleScreen.orientation.y;
         cameraData.headsetPosition.z = middleScreen.orientation.z;
 #elif CALC_MODE == APP_CALC_CONVERT
-        // setting up the "global" variables for the conversion
-        float targetX = cameraData.target.x;
-        float targetY = cameraData.target.y;
-        float targetZ = cameraData.target.z;
-        float posX = cameraData.pos.x;
-        float posY = cameraData.pos.y;
-        float posZ = cameraData.pos.z;
+        // Define the "global" variables
+        float oldTargetX = cameraData.target.x;
+        float oldTargetY = cameraData.target.y;
+        float oldTargetZ = cameraData.target.z;
+        float oldPosX = cameraData.pos.x;
+        float oldPosY = cameraData.pos.y;
+        float oldPosZ = cameraData.pos.z;
 
         float hmdQuatX = middleScreen.orientation.x;
         float hmdQuatY = middleScreen.orientation.y;
@@ -222,6 +223,16 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
         float hmdPosX = middleScreen.position.x;
         float hmdPosY = middleScreen.position.y;
         float hmdPosZ = middleScreen.position.z;
+
+        float newTargetX = 0.0f;
+        float newTargetY = 0.0f;
+        float newTargetZ = 0.0f;
+        float newPosX = 0.0f;
+        float newPosY = 0.0f;
+        float newPosZ = 0.0f;
+        float newRotX = 0.0f;
+        float newRotY = 0.0f;
+        float newRotZ = 0.0f;
 
         const float lookUpX = 0.0f;
         const float lookUpY = 1.0f;
@@ -249,7 +260,8 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
         float rightY = lookUpZ * viewMatrix[2][0] - viewMatrix[2][2] * lookUpX;
         float rightZ = lookUpX * viewMatrix[2][1] - viewMatrix[2][0] * lookUpY;
 
-        float multiplier = 1.0f / sqrtf(fmaxf(0.00000001f, (rightX * rightX + rightY * rightY + rightZ * rightZ)));
+        float dotRow = rightX * rightX + rightY * rightY + rightZ * rightZ;
+        float multiplier = 1.0f / sqrtf(dotRow < 0.00000001f ? 0.00000001f : dotRow);
         viewMatrix[0][0] = rightX * multiplier;
         viewMatrix[0][1] = rightY * multiplier;
         viewMatrix[0][2] = rightZ * multiplier;
@@ -344,18 +356,35 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
         newViewMatrix[2][2] = 1.0f - 2.0f * (qxx + qyy);
 
         // Change camera variables
-        float distance = (float)std::hypot(cameraData.target.x - cameraData.pos.x, cameraData.target.y - cameraData.pos.y, cameraData.target.z - cameraData.pos.z);
+        float distance = sqrtf(((targetX - posX) * (targetX - posX)) + ((targetY - posY) * (targetY - posY)) + ((targetZ - posZ) * (targetZ - posZ)));
         float targetVecX = (newViewMatrix[2][0] * -1.0f) * distance;
         float targetVecY = (newViewMatrix[2][1] * -1.0f) * distance;
         float targetVecZ = (newViewMatrix[2][2] * -1.0f) * distance;
 
-        cameraData.target.x = cameraData.pos.x + targetVecX;
-        cameraData.target.y = cameraData.pos.y + targetVecY;
-        cameraData.target.z = cameraData.pos.z + targetVecZ;
+        newTargetX = posX + targetVecX;
+        newTargetY = posY + targetVecY;
+        newTargetZ = posZ + targetVecZ;
 
-        cameraData.rot.x = newViewMatrix[1][0];
-        cameraData.rot.y = newViewMatrix[1][1];
-        cameraData.rot.z = newViewMatrix[1][2];
+        newPosX = posX - (targetVecX * 0.0f);
+        newPosY = posY - (targetVecY * 0.0f);
+        newPosZ = posZ - (targetVecZ * 0.0f);
+
+        newRotX = newViewMatrix[1][0];
+        newRotY = newViewMatrix[1][1];
+        newRotZ = newViewMatrix[1][2];
+
+        // Set global variables
+        cameraData.target.x = newTargetX;
+        cameraData.target.y = newTargetY;
+        cameraData.target.z = newTargetZ;
+
+        cameraData.pos.x = newPosX;
+        cameraData.pos.y = newPosY;
+        cameraData.pos.z = newPosZ;
+
+        cameraData.rot.x = newRotX;
+        cameraData.rot.y = newRotY;
+        cameraData.rot.z = newRotZ;
 #elif CALC_MODE == APP_CALC_LIBRARY
         Eigen::Vector3f forwardVector = Eigen::Vector3f(cameraData.target.x, cameraData.target.y, cameraData.target.z) - Eigen::Vector3f(cameraData.pos.x, cameraData.pos.y, cameraData.pos.z);
         forwardVector.normalize();
@@ -364,6 +393,7 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
         glm::fquat tempGameQuat = glm::quatLookAtRH(direction, glm::vec3(0.0, 1.0, 0.0));
         Eigen::Quaternionf gameQuat = Eigen::Quaternionf(tempGameQuat.w, tempGameQuat.x, tempGameQuat.y, tempGameQuat.z);
         Eigen::Quaternionf hmdQuat = Eigen::Quaternionf(middleScreen.orientation.w, middleScreen.orientation.x, middleScreen.orientation.y, middleScreen.orientation.z);
+        Eigen::Quaternionf differenceQuat = Eigen::Quaternionf(middleScreen.orientation.w, middleScreen.orientation.x, middleScreen.orientation.y, middleScreen.orientation.z);
         
         gameQuat = gameQuat * hmdQuat;
         
@@ -378,10 +408,13 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
         cameraData.target.x = cameraData.pos.x + targetVecX;
         cameraData.target.y = cameraData.pos.y + targetVecY;
         cameraData.target.z = cameraData.pos.z + targetVecZ;
+
+        Eigen::Vector3f hmdPos(middleScreen.position.x, middleScreen.position.y, middleScreen.position.z);
+        hmdPos = gameQuat * hmdPos;
         
-        cameraData.pos.x = cameraData.pos.z;
-        cameraData.pos.y = cameraData.pos.y;
-        cameraData.pos.z = cameraData.pos.z;
+        cameraData.pos.x = cameraData.pos.x + hmdPos.x() * const_HeadPositionalMovementSensitivity;
+        cameraData.pos.y = cameraData.pos.y + hmdPos.y() * const_HeadPositionalMovementSensitivity;
+        cameraData.pos.z = cameraData.pos.z + hmdPos.z() * const_HeadPositionalMovementSensitivity;
         
         cameraData.rot.x = rotMatrix.data()[3];
         cameraData.rot.y = rotMatrix.data()[4];

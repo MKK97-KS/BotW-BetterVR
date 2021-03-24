@@ -1,0 +1,6 @@
+[Definition]
+titleIds = 00050000101C9300,00050000101C9400,00050000101C9500
+name = Better VR (Precalc Version)
+path = "The Legend of Zelda: Breath of the Wild/Better VR (Precalc)"
+description = Used for testing out any calculations before turning them into a PPC compiled patch.|Make sure that you've compiled the OpenXR using the APP_CALC_CONVERT or APP_CALC_LIBRARY mode alongside this graphic pack.
+version = 7

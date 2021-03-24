@@ -1,0 +1,29 @@
+[Definition]
+titleIds = 00050000101C9300,00050000101C9400,00050000101C9500
+name = Better VR
+path = "The Legend of Zelda: Breath of the Wild/Better VR"
+description = Woah, put on those goggles!
+version = 7
+
+[Default]
+$FOV = 1.88888887
+
+[Preset]
+name = Low
+category = Field Of View
+$FOV = 1.7
+
+[Preset]
+name = Normal (Default)
+category = Field Of View
+default = 1
+
+[Preset]
+name = High
+category = Field Of View
+$FOV = 1.94
+
+[Preset]
+name = Extreme
+category = Field Of View
+$FOV = 2.02
