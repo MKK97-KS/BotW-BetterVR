@@ -163,7 +163,7 @@ namespace {
             ID3D11RenderTargetView* renderTargets[] = {renderTargetView.get()};
             m_deviceContext->OMSetRenderTargets((UINT)std::size(renderTargets), renderTargets, NULL);
 
-            if (getCemuHWND() != NULL && getHookMode() == HOOK_MODE::GFX_PACK_ENABLED || getHookMode() == HOOK_MODE::BOTH_ENABLED_PRECALC || getHookMode() == HOOK_MODE::BOTH_ENABLED_GFX_CALC) {
+            if (getCemuHWND() != NULL && (getHookMode() == HOOK_MODE::GFX_PACK_ENABLED || getHookMode() == HOOK_MODE::BOTH_ENABLED_PRECALC || getHookMode() == HOOK_MODE::BOTH_ENABLED_GFX_CALC)) {
                 if (m_setup_not_done) {
                     m_setup_not_done = false;
 
@@ -184,6 +184,21 @@ namespace {
                     // Initialize dublication
                     IDXGIOutput1* output1;
                     pOutput->QueryInterface(IID_PPV_ARGS(&output1));
+                    
+                    // Check if Cemu is fullscreen
+                    RECT cemuCoords;
+                    GetWindowRect(getCemuHWND(), &cemuCoords);
+
+#ifndef _DEBUG
+                    DXGI_OUTPUT_DESC desc;
+                    output1->GetDesc(&desc);
+                    if (desc.DesktopCoordinates.left == cemuCoords.left && desc.DesktopCoordinates.right == cemuCoords.right && desc.DesktopCoordinates.top == cemuCoords.top && desc.DesktopCoordinates.bottom == cemuCoords.bottom) {
+                        setCemuFullScreen(true);
+                    }
+                    else setCemuFullScreen(false);
+#else
+                    setCemuFullScreen(true);
+#endif
                     pOutput->Release();
 
                     output1->DuplicateOutput(m_device.get(), m_dxgiOutputApplication.put());
@@ -196,7 +211,7 @@ namespace {
                 DXGI_OUTDUPL_FRAME_INFO dxgiFrameInfo;
                 HRESULT hr = m_dxgiOutputApplication->AcquireNextFrame(INFINITE, &dxgiFrameInfo, &dxgiResource);
 
-                if (hr == DXGI_ERROR_ACCESS_LOST || hr == DXGI_ERROR_WAIT_TIMEOUT) {
+                if (hr == DXGI_ERROR_ACCESS_LOST || hr == DXGI_ERROR_WAIT_TIMEOUT || !getCemuFullScreen()) {
                     // When you go into full-screen, this'll prevent the game from erroring out
                     D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceView = {};
                     shaderResourceView.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -287,6 +302,7 @@ namespace {
         DXGI_OUTDUPL_FRAME_INFO m_outputFrameInfo;
         D3D11_TEXTURE2D_DESC m_placeholderFrameDesc;
         bool m_setup_not_done;
+        bool m_cemu_fullscreen;
     };
 } // namespace
 

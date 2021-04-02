@@ -69,6 +69,7 @@ void reverseCopyBufferEndianess(copyDataBuffer* data) {
     data->rot.z = reverseFloatEndianess(data->rot.z);
 }
 
+bool cemuFullscreen = false;
 HOOK_MODE hookStatus;
 inputDataBuffer inputCamera;
 copyDataBuffer copyCamera;
@@ -165,6 +166,7 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
             vrAddress = NULL;
             retryFindingCemu = 0;
             hookStatus = HOOK_MODE::DISABLED;
+            cemuFullscreen = false;
             return;
         }
 
@@ -181,6 +183,7 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
             baseAddress = NULL;
             vrAddress = NULL;
             retryFindingCemu = 0;
+            cemuFullscreen = false;
             return;
         }
         else if (hookStatus == HOOK_MODE::GFX_PACK_ENABLED || hookStatus == HOOK_MODE::BOTH_ENABLED_GFX_CALC) {
@@ -210,6 +213,7 @@ void SetBotWPositions(XrView leftScreen, XrView rightScreen) {
             baseAddress = NULL;
             vrAddress = NULL;
             retryFindingCemu = 0;
+            cemuFullscreen = false;
             return;
         }
         else if (copyCamera.pos.x == 0.0f || copyCamera.pos.y == 0.0f || copyCamera.pos.z == 0.0f) {
@@ -510,4 +514,12 @@ HWND getCemuHWND()
 HOOK_MODE getHookMode()
 {
     return hookStatus;
+}
+
+void setCemuFullScreen(bool enabled) {
+    cemuFullscreen = enabled;
+}
+
+bool getCemuFullScreen() {
+    return cemuFullscreen;
 }

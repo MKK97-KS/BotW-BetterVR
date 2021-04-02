@@ -31,7 +31,7 @@ You can leave the graphic pack enabled while playing in non-VR without any issue
 3. Open the project using Visual Studio and build it.
 
 The OpenXR application has three different modes that you can change in the `BotWHook.cpp` file:
-- `GFX_PACK_PASSTHROUGH` is only useful for releasing. It moves the camera computations from the app to the compiled code in the graphic pack itself to reduce latency code.
+- `GFX_PACK_PASSTHROUGH` is only useful for releasing. It moves the camera computations from the app to the compiled code in the graphic pack itself to reduce the input latency by asynchronously updating the headset positions.
 - `APP_CALC_CONVERT` is used as an intermediary form of the library-dependent code and is able to be compiled into a graphic pack patch that works with the `GFX_PACK_PASSTHROUGH` code.
 - `APP_CALC_LIBRARY` will be the most useful mode for most people. It allows you to interact with the camera using the eigen and glm libraries so that it's easy to develop and experiment with.
 

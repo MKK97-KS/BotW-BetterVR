@@ -12,3 +12,5 @@ void InitializeCemuHooking();
 void SetBotWPositions(XrView leftScreen, XrView rightScreen);
 HWND getCemuHWND();
 HOOK_MODE getHookMode();
+void setCemuFullScreen(bool enabled);
+bool getCemuFullScreen();
