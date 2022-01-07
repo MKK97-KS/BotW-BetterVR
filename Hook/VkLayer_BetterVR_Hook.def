@@ -1,6 +1,0 @@
-LIBRARY VkLayer_BetterVR_Hook 
-EXPORTS 
-vkGetInstanceProcAddr 
-vkGetDeviceProcAddr 
-vkEnumerateInstanceLayerProperties 
-vkEnumerateInstanceExtensionProperties 
