@@ -79,9 +79,6 @@ void cameraHookUpdate(PPCInterpreter_t* hCPU);
 void cameraHookFrame(PPCInterpreter_t* hCPU);
 void cameraHookInterface(PPCInterpreter_t* hCPU);
 float cameraGetMenuZoom();
-bool cameraUseSwappedFlipMode();
-float cameraGetEyeSeparation();
-float cameraGetZoomOutLevel();
 bool cameraIsInGame();
 
 void logInitialize();

@@ -30,7 +30,7 @@ template <typename T>
 void readMemoryBE(uint64_t offset, T* resultPtr) {
 	uint64_t memoryAddress = memoryBaseAddress + offset;
 	memcpy(resultPtr, (void*)memoryAddress, sizeof(T));
-	swapEndianness(resultPtr);
+	swapEndianness(*resultPtr);
 }
 
 template <typename T>

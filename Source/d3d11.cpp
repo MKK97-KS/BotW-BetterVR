@@ -365,7 +365,7 @@ void dx11Initialize() {
 	logPrint("Successfully created OpenXR swapchains!");
 
 	XrReferenceSpaceCreateInfo spaceCreateInfo = { XR_TYPE_REFERENCE_SPACE_CREATE_INFO };
-	spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+	spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
 	spaceCreateInfo.poseInReferenceSpace = xrIdentityPose;
 	checkXRResult(xrCreateReferenceSpace(xrSessionHandle, &spaceCreateInfo, &xrSpaceHandle), "Failed to create reference space!");
 	logPrint("Successfully created OpenXR reference space!");

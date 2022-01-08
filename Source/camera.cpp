@@ -35,12 +35,6 @@ struct graphicPackData {
 	float newAspectRatio;
 };
 
-struct LinkData {
-	float posX = 0;
-	float posY = 0;
-	float posZ = 0;
-};
-
 std::mutex currGraphicPackSettingsLock;
 graphicPackData currGraphicPackSettingsData = {};
 
@@ -51,17 +45,19 @@ graphicPackData cameraGetGraphicPackSettings() {
 	return retCopy;
 }
 
-LinkData getLinkData() {
-	LinkData retCopy;
-
+glm::fvec3 getLinkPosition() {
 	uint32_t actorSystemStructureOffset = 0;
 	readMemoryBE(0x1046CD00, &actorSystemStructureOffset);
 
-	readMemoryBE((uint64_t)actorSystemStructureOffset + 0x9C + 0x0, &retCopy.posX);
-	readMemoryBE((uint64_t)actorSystemStructureOffset + 0x9C + 0x4, &retCopy.posY);
-	readMemoryBE((uint64_t)actorSystemStructureOffset + 0x9C + 0x8, &retCopy.posZ);
+	float linkX = 0;
+	float linkY = 0;
+	float linkZ = 0;
 
-	return retCopy;
+	readMemoryBE(actorSystemStructureOffset + 0x9C + 0x0, &linkX);
+	readMemoryBE(actorSystemStructureOffset + 0x9C + 0x4, &linkY);
+	readMemoryBE(actorSystemStructureOffset + 0x9C + 0x8, &linkZ);
+
+	return glm::fvec3(linkX, linkY, linkZ);
 }
 
 void cameraInitialize() {
@@ -109,9 +105,11 @@ uint64_t framesSinceLastCameraUpdate = 0;
 void cameraHookInterface(PPCInterpreter_t* hCPU) {
 	hCPU->instructionPointer = hCPU->gpr[8];
 
+#ifdef _DEBUG
 	char screenNamePrintBuffer[200];
 	snprintf(screenNamePrintBuffer, sizeof(screenNamePrintBuffer), "Created new \"%s\" screen with an ID of 0x%08x", (const char*)(memoryBaseAddress + hCPU->gpr[7]), hCPU->gpr[5]);
 	logPrint(screenNamePrintBuffer);
+#endif
 
 	ScreenId newScreenId = (ScreenId)hCPU->gpr[5];
 	switch (newScreenId) {
@@ -161,9 +159,8 @@ void cameraHookFrame(PPCInterpreter_t* hCPU) {
 
 void cameraHookUpdate(PPCInterpreter_t* hCPU) {
 	//logPrint("Updated the camera positions");
-	hCPU->instructionPointer = hCPU->gpr[7]; // r7 will have the instruction that should be returned to
-
 	framesSinceLastCameraUpdate = 0;
+	hCPU->instructionPointer = hCPU->gpr[7]; // r7 will have the instruction that should be returned to
 
 	// r30 has the graphicPackData offset in memory
 	uint32_t graphicPackDataOffset = hCPU->gpr[30];
@@ -172,68 +169,91 @@ void cameraHookUpdate(PPCInterpreter_t* hCPU) {
 	readMemory(graphicPackDataOffset, &inputData);
 	swapGraphicPackDataEndianness(&inputData);
 
+	// Excuses for the unoptimal math
+
 	// Current headset view
-	XrView* currView = ((currSwapSide == SWAP_SIDE::LEFT) ? &leftView : &rightView);
+	XrView* currView = currSwapSide == SWAP_SIDE::LEFT ? &leftView : &rightView;
+	XrView* otherView = !(currSwapSide == SWAP_SIDE::LEFT) ? &leftView : &rightView;
 	glm::fvec3 leftEyePos = glm::vec3(leftView.pose.position.x, leftView.pose.position.y, leftView.pose.position.z);
 	glm::fvec3 rightEyePos = glm::vec3(rightView.pose.position.x, rightView.pose.position.y, rightView.pose.position.z);
-	glm::fvec3 eyePos(currView->pose.position.x, currView->pose.position.y, currView->pose.position.z);
+	glm::fvec3 currEyePos(currView->pose.position.x, currView->pose.position.y, currView->pose.position.z);
 	glm::fvec3 hmdPos = glm::mix(leftEyePos, rightEyePos, 0.5f);
+	glm::fquat hmdQuat = glm::fquat(currView->pose.orientation.w, currView->pose.orientation.x, currView->pose.orientation.y, currView->pose.orientation.z);
 
-	// Current game view
+	// Current game positions
 	glm::fvec3 oldPosition(inputData.oldPosX, inputData.oldPosY, inputData.oldPosZ);
 	glm::fvec3 oldTarget(inputData.oldTargetX, inputData.oldTargetY, inputData.oldTargetZ);
 	float originalCameraDistance = glm::distance(oldPosition, oldTarget);
 
-	// Calculate new positions and rotations
+	// Calculate game view directions
 	glm::fvec3 forwardVector = oldTarget - oldPosition;
 	forwardVector = glm::normalize(forwardVector);
 	glm::fquat lookAtQuat = glm::quatLookAtRH(forwardVector, {0.0, 1.0, 0.0});
-	glm::fquat hmdQuat = glm::fquat(currView->pose.orientation.w, currView->pose.orientation.x, currView->pose.orientation.y, currView->pose.orientation.z);
 
-	glm::fquat combinedQuat = lookAtQuat * hmdQuat;
-	glm::fmat3 combinedMatrix = glm::toMat3(hmdQuat);
+	// Calculate new view direction
+	glm::fquat combinedQuat = glm::normalize(lookAtQuat * hmdQuat);
+	glm::fmat3 combinedMatrix = glm::toMat3(combinedQuat);
 
-	glm::fvec3 rotatedHmdPos = combinedQuat * eyePos;
+	// Calculate eye offset
+	glm::fvec3 eyeOffset = currEyePos - hmdPos;
+	glm::fvec3 rotatedEyeOffset = lookAtQuat * eyeOffset;
 
-	inputData.newTargetX = inputData.oldPosX + ((combinedMatrix[2][0] * -1.0f) * originalCameraDistance) + rotatedHmdPos.x;
-	inputData.newTargetY = inputData.oldPosY + ((combinedMatrix[2][1] * -1.0f) * originalCameraDistance) + rotatedHmdPos.y + inputData.heightPositionOffsetSetting;
-	inputData.newTargetZ = inputData.oldPosZ + ((combinedMatrix[2][2] * -1.0f) * originalCameraDistance) + rotatedHmdPos.z;
+	// Calculate room space movement
+	glm::fvec3 spaceOffset = hmdPos * inputData.headPositionSensitivitySetting;
+	glm::fvec3 rotatedSpaceOffset = lookAtQuat * spaceOffset;
 
-	inputData.newPosX = inputData.oldPosX + rotatedHmdPos.x;
-	inputData.newPosY = inputData.oldPosY + rotatedHmdPos.y + inputData.heightPositionOffsetSetting;
-	inputData.newPosZ = inputData.oldPosZ + rotatedHmdPos.z;
+	// Get position where the new camera should be at depending on the mode
+	glm::fvec3 newPosition = oldPosition;
+	if (inputData.modeSetting == 1) {
+		newPosition = oldTarget;
+	}
+	else if (inputData.modeSetting == 2) {
+		newPosition = getLinkPosition();
+		newPosition.y += 2.0; // todo: Since link's position is gotten from his feet, this should contain Link's eye positions. This should be datamined from the game files/tested.
+		// todo: Should lower when crouched. Also should change to newPosition when climbing a rock probably, or change to his eyes or something?
+	}
+
+	// Convert the calculated parameters into the new camera matrix provided by the game
+	inputData.newTargetX = newPosition.x + ((combinedMatrix[2][0] * -1.0f) * originalCameraDistance) + rotatedEyeOffset.x + rotatedSpaceOffset.x;
+	inputData.newTargetY = newPosition.y + ((combinedMatrix[2][1] * -1.0f) * originalCameraDistance) + rotatedEyeOffset.y + rotatedSpaceOffset.y + inputData.heightPositionOffsetSetting;
+	inputData.newTargetZ = newPosition.z + ((combinedMatrix[2][2] * -1.0f) * originalCameraDistance) + rotatedEyeOffset.z + rotatedSpaceOffset.z;
+
+	inputData.newPosX = newPosition.x + rotatedEyeOffset.x + rotatedSpaceOffset.x;
+	inputData.newPosY = newPosition.y + rotatedEyeOffset.y + rotatedSpaceOffset.y + inputData.heightPositionOffsetSetting;
+	inputData.newPosZ = newPosition.z + rotatedEyeOffset.z + rotatedSpaceOffset.z;
 
 	inputData.newRotX = combinedMatrix[1][0];
 	inputData.newRotY = combinedMatrix[1][1];
 	inputData.newRotZ = combinedMatrix[1][2];
 
 	// Set FOV
-	float horizontalFOV = (leftView.fov.angleRight - rightView.fov.angleLeft);
+	float horizontalFOV = (leftView.fov.angleRight - leftView.fov.angleLeft);
 	float verticalFOV = (leftView.fov.angleUp - leftView.fov.angleDown);
+	float aspectRatio = horizontalFOV / verticalFOV;
 
 	//float horizontalFullFovInRadians = 2.0f * atanf(combinedTanHalfFovHorizontal);
 
-	float leftHalfFOV = glm::degrees(leftView.fov.angleLeft);
-	float rightHalfFOV = glm::degrees(leftView.fov.angleRight);
-	float upHalfFOV = glm::degrees(leftView.fov.angleUp);
-	float downHalfFOV = glm::degrees(leftView.fov.angleDown);
+	//float leftHalfFOV = glm::degrees(leftView.fov.angleLeft);
+	//float rightHalfFOV = glm::degrees(leftView.fov.angleRight);
+	//float upHalfFOV = glm::degrees(leftView.fov.angleUp);
+	//float downHalfFOV = glm::degrees(leftView.fov.angleDown);
 
-	float horizontalHalfFOV = (abs(leftView.fov.angleLeft) + abs(leftView.fov.angleRight)) * 0.5;
-	float verticalHalfFOV = (abs(leftView.fov.angleUp) + abs(leftView.fov.angleDown)) * 0.5;
+	//float horizontalHalfFOV = (abs(leftView.fov.angleLeft) + abs(leftView.fov.angleRight)) * 0.5;
+	//float verticalHalfFOV = (abs(leftView.fov.angleUp) + abs(leftView.fov.angleDown)) * 0.5;
 
-	//float horizontalFullFovInRadians = 2.0f * atanf(combinedTanHalfFovHorizontal);
+	////float horizontalFullFovInRadians = 2.0f * atanf(combinedTanHalfFovHorizontal);
 
-	float diagonalFOV = sqrtf(horizontalFOV * horizontalFOV + verticalFOV * verticalFOV);
-	float horizontalFullFovInRadians = 2.0f * atanf(horizontalHalfFOV);
-	float aspectRatioCompare = tanf(diagonalFOV / 2.0f);
-	float aspectRatio = horizontalHalfFOV / verticalHalfFOV; //horizontalHalfFOV / verticalHalfFOV;
+	//float diagonalFOV = sqrtf(horizontalFOV * horizontalFOV + verticalFOV * verticalFOV);
+	//float horizontalFullFovInRadians = 2.0f * atanf(horizontalHalfFOV);
+	//float aspectRatioCompare = tanf(diagonalFOV / 2.0f);
+	//float aspectRatio = horizontalHalfFOV / verticalHalfFOV; //horizontalHalfFOV / verticalHalfFOV;
 
 	//logPrint(std::string("Horizontal FOV in degrees is ") + std::to_string(glm::degrees(horizontalFOV)) + std::string(" and in radians (as used by OpenXR) ") + std::to_string(horizontalFOV));
 	//logPrint(std::string("Vertical FOV in degrees is ") + std::to_string(glm::degrees(verticalFOV)) + std::string(" and in radians (as used by OpenXR) ") + std::to_string(verticalFOV));
 	//logPrint(std::string("Diagonal FOV in degrees is ") + std::to_string(glm::degrees(diagonalFOV)) + std::string(" and in radians (as used by OpenXR) ") + std::to_string(diagonalFOV));
 	//logPrint(std::string("Calculated aspect ratio is ") + std::to_string(aspectRatio));
 
-	inputData.newFOV = horizontalFullFovInRadians;
+	inputData.newFOV = verticalFOV;
 	inputData.newAspectRatio = aspectRatio;
 
 	swapGraphicPackDataEndianness(&inputData);

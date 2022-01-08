@@ -7,13 +7,12 @@ version = 7
 
 [Default]
 $FOV = 0.872665
-$cameraDistance = 0.1
+$cameraDistance = 0.5 ; currently disabled
 $linkOpacity = 1.0
 
 $mode:int = 0
 $hudScale = 0.4
 $menuScale = 0.4
-$swappedFlipSide = 0
 $eyeSeparation = 0.067000
 
 ; This changes how much moving your headset moves the in-game camera
@@ -25,23 +24,52 @@ $heightPositionOffset = 0.0
 # Mode selector
 
 [Preset]
-name = Third-Person (Default)
+name = Third-Person Camera (Default)
 category = Camera Mode
 default = 1
 
 [Preset]
-name = First-Person (Without Room Scale Movement)
+name = First-Person Camera
 category = Camera Mode
-$mode:int = 1
-$linkOpacity = 0.0
-$cameraDistance = 0.01
+$mode = 1
 
 [Preset]
-name = First-Person (With Room Scale Movement)
+name = First-Person Link View
 category = Camera Mode
-$mode:int = 2
-$linkOpacity = 0.0
-$cameraDistance = 0.01
+$mode = 2
+
+
+# Room Scale Movement Sensitivity
+
+[Preset]
+name = None (Disabled)
+category = Room Scale Movement
+$headPositionSensitivity = 0.0
+
+[Preset]
+name = Low (0.75x player size)
+category = Room Scale Movement
+$headPositionSensitivity = 0.75
+
+[Preset]
+name = Normal (real player size)
+category = Room Scale Movement
+$headPositionSensitivity = 1.0
+
+[Preset]
+name = High (1.0x player size)
+category = Room Scale Movement
+$headPositionSensitivity = 1.25
+
+[Preset]
+name = Ultra (1.5x player size)
+category = Room Scale Movement
+$headPositionSensitivity = 1.5
+
+[Preset]
+name = Extreme (2.0x player size)
+category = Room Scale Movement
+$headPositionSensitivity = 2.0
 
 
 # Third Person - Camera Distance
@@ -77,6 +105,7 @@ category = Camera Distance
 condition = $mode == 0
 $cameraDistance = 0.9
 
+
 # Field Of View
 
 [Preset]
@@ -110,6 +139,7 @@ name = Very Low
 category = Field Of View
 $FOV = 0.6
 
+
 # HUD Scale
 
 [Preset]
@@ -133,6 +163,7 @@ name = Big
 category = HUD Scale (hearts, minimap etc.)
 $hudScale = 0.6
 
+
 # Menu Scale
 
 [Preset]
@@ -155,14 +186,3 @@ $menuScale = 0.6
 name = Big
 category = Menu Scale (inventory, map etc.)
 $menuScale = 0.5
-
-[Preset]
-name = Enabled
-category = Swap Sides
-$swappedFlipSide = 1
-
-[Preset]
-name = Disabled (Default)
-category = Swap Sides
-default = 1
-$swappedFlipSide = 0
