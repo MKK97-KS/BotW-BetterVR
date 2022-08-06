@@ -40,36 +40,3 @@ bool cemuInitialize() {
 
 void cemuShutdown() {
 }
-
-void* cemuFindAddressUsingAOBScan(const char* aobString, uint64_t searchStart, uint64_t searchEnd) {
-	if (searchStart == 0) {
-		searchStart = memoryBaseAddress;
-	}
-
-	MEMORY_BASIC_INFORMATION memBasicInfo{};
-	const char* aobStringEnd = aobString + strlen(aobString);
-
-	//char hexBuffer[4];
-	//for (char* curr = (char*)searchStart; curr < (char*)searchEnd; curr += memBasicInfo.RegionSize) {
-	//	if (!VirtualQuery(curr, &memBasicInfo, sizeof(memBasicInfo)) || memBasicInfo.State != MEM_COMMIT || memBasicInfo.State == PAGE_NOACCESS)
-	//		continue;
-	//	for (char* c=curr; c<curr+memBasicInfo.RegionSize; c++) {
-	//		for (const auto& aobByte : compiledAobPattern) {
-	//			c
-	//		}
-	//	}
-	//}
-
-	return nullptr;
-}
-
-void* cemuFindAddressUsingBytes(const char* bytes, uint32_t bytesSize, uint64_t searchStart, uint64_t searchEnd) {
-	std::string createdAOBString = "";
-	char hexBuffer[4];
-	for (uint32_t i=0; i<bytesSize; i++) {
-		createdAOBString += _itoa_s(int(bytes[i]), hexBuffer, 16);
-		createdAOBString += " ";
-	}
-	cemuFindAddressUsingAOBScan(createdAOBString.c_str(), searchStart, searchEnd);
-	return nullptr;
-}

@@ -48,63 +48,20 @@ void logTimeElapsed(char* prefixMessage, LARGE_INTEGER time) {
 }
 
 void checkXRResult(XrResult result, const char* errorMessage) {
+	XrResult resultCheck = result;
 	if (XR_FAILED(result)) {
 		if (errorMessage == nullptr) {
 #ifdef _DEBUG
-			__debugbreak();
 			logPrint("[Error] An unknown error has occured! Fatal crash!");
+			__debugbreak();
 #endif
 			MessageBoxA(NULL, "An unknown error has occured which caused a fatal crash!", "An error occured!", MB_OK | MB_ICONERROR);
 			throw std::runtime_error("Undescribed error occured!");
 		}
 		else {
 #ifdef _DEBUG
+			logPrint(std::string("[Error] Error ")+std::to_string(result)+": "+std::string(errorMessage));
 			__debugbreak();
-			logPrint((std::string("[Error] ") + std::string(errorMessage)));
-#endif
-			MessageBoxA(NULL, errorMessage, "A fatal error occured!", MB_OK | MB_ICONERROR);
-			throw std::runtime_error(errorMessage);
-		}
-	}
-}
-
-__declspec(noinline) void checkMutexHResult(HRESULT result) {
-	if (result == S_OK) {
-	}
-	else if (result == WAIT_ABANDONED) {
-		logPrint("Wait abandoned!");
-		__debugbreak();
-	}
-	else if (result == WAIT_TIMEOUT) {
-		logPrint("Wait timeout");
-		__debugbreak();
-	}
-	else if (result == E_INVALIDARG) {
-		logPrint("Invalid parameter? Maybe Vulkan throw it away and wants me to remake the lock?");
-	}
-	else {
-		char message[200];
-		snprintf(message, sizeof(message), "mutex = 0x%08x\n", result);
-		logPrint(message);
-		logPrint("Fuck!!");
-		__debugbreak();
-	}
-}
-
-void checkHResult(HRESULT result, const char* errorMessage) {
-	if (FAILED(result)) {
-		if (errorMessage == nullptr) {
-#ifdef _DEBUG
-			__debugbreak();
-			logPrint((std::string("[Error] An unknown error has occured! Fatal crash!")));
-#endif
-			MessageBoxA(NULL, "An unknown error has occured which caused a fatal crash!", "A fatal error occured!", MB_OK | MB_ICONERROR);
-			throw std::runtime_error("Undescribed error occured!");
-		}
-		else {
-#ifdef _DEBUG
-			__debugbreak();
-			logPrint((std::string("[Error] ") + std::string(errorMessage)));
 #endif
 			MessageBoxA(NULL, errorMessage, "A fatal error occured!", MB_OK | MB_ICONERROR);
 			throw std::runtime_error(errorMessage);
