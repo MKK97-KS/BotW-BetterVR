@@ -30,6 +30,9 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateInstance(const VkInstanceCreateI
 	// Initialize layer-specific stuff
 	logInitialize();
 	SetEnvironmentVariableA("VK_INSTANCE_LAYERS", NULL);
+	SetEnvironmentVariableA("DISABLE_RTSS_LAYER", "1");
+	SetEnvironmentVariableA("DISABLE_VULKAN_OBS_CAPTURE", "1");
+	vulkanModule = LoadLibraryA("vulkan-1.dll");
 	XR_initInstance();
 	if (currRuntime == STEAMVR_RUNTIME) {
 		SteamVRHook_initialize();
@@ -88,13 +91,13 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_EnumeratePhysicalDevices(VkInstance in
 	}
 	else {
 		if (pPhysicalDevices == nullptr) {
-			*pPhysicalDeviceCount = (uint32_t)physicalDevices.size();
+			*pPhysicalDeviceCount = (uint32_t)layerPhysicalDevices.size();
 		}
 		else {
-			*pPhysicalDeviceCount = (uint32_t)physicalDevices.size();
+			*pPhysicalDeviceCount = (uint32_t)layerPhysicalDevices.size();
 			logPrint(std::format("[DEBUG] Enumerate physical devices: VkInstance = {}, *count = {}", (void*)instance, *pPhysicalDeviceCount));
 			for (uint32_t i=0; i<*pPhysicalDeviceCount; i++) {
-				pPhysicalDevices[i] = physicalDevices[i];
+				pPhysicalDevices[i] = layerPhysicalDevices[i];
 				logPrint(std::format(" - {}", (void*)pPhysicalDevices[i]));
 			}
 			vkSharedPhysicalDevice = pPhysicalDevices[0];
@@ -115,7 +118,6 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_EnumeratePhysicalDevices(VkInstance in
 	//	vkSharedPhysicalDevice = pPhysicalDevices[0];
 	//	return VK_SUCCESS;
 	//}
-
 	//if (in_XR_GetPhysicalDevice) {
 	//	bool nullOutput = pPhysicalDevices == nullptr;
 	//	VkResult result = VK_SUCCESS;
@@ -210,7 +212,6 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateDevice(VkPhysicalDevice gpu, con
 	deviceTable.GetImageMemoryRequirements = (PFN_vkGetImageMemoryRequirements)next_GetDeviceProcAddr(*pDevice, "vkGetImageMemoryRequirements");
 	deviceTable.CreateImage = (PFN_vkCreateImage)next_GetDeviceProcAddr(*pDevice, "vkCreateImage");
 	deviceTable.CmdCopyImage = (PFN_vkCmdCopyImage)next_GetDeviceProcAddr(*pDevice, "vkCmdCopyImage");
-	deviceTable.CmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)next_GetDeviceProcAddr(*pDevice, "vkCmdPipelineBarrier");
 
 	{
 		scoped_lock l(global_lock);
@@ -239,7 +240,6 @@ VkResult Layer_EnumerateInstanceVersion(const VkEnumerateInstanceVersionChain* p
 // https://github.dev/crosire/reshade/tree/main/source/vulkan
 // https://github.dev/baldurk/renderdoc/tree/v1.x/renderdoc/driver/vulkan
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL Layer_GetInstanceProcAddr(VkInstance instance, const char* pName) {
-	
 	PFN_vkVoidFunction voidFunc = nullptr;
 	if (instance != nullptr) {
 		scoped_lock l(global_lock);
@@ -282,7 +282,24 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL Layer_GetInstanceProcAddr(VkInstan
 	}
 }
 
+
+bool toggled = false;
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL Layer_GetDeviceProcAddr(VkDevice device, const char* pName) {
+	PFN_vkVoidFunction voidFunc = nullptr;
+	if (device != nullptr) {
+		scoped_lock l(global_lock);
+		voidFunc = device_dispatch[GetKey(device)].GetDeviceProcAddr(device, pName);
+		logPrint(std::format("[DEBUG] Layer_GetDeviceProcAddr {} using {}, result = {}", pName, (void*)device, (void*)voidFunc));
+	}
+	else {
+		__debugbreak();
+		logPrint(std::format("[DEBUG] Layer_GetDeviceProcAddr {} using no device", pName));
+	}
+
+	//PFN_vkGetDeviceProcAddr top_DeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(GetProcAddress(reinterpret_cast<HMODULE>(vulkanModule), "vkGetDeviceProcAddr"));
+
+	HOOK_PROC_FUNC(CreateInstance);
+	HOOK_PROC_FUNC(DestroyInstance);
 	HOOK_PROC_FUNC(CreateDevice);
 	HOOK_PROC_FUNC(DestroyDevice);
 
@@ -297,15 +314,21 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL Layer_GetDeviceProcAddr(VkDevice d
 	HOOK_PROC_FUNC(QueueSubmit);
 	HOOK_PROC_FUNC(QueuePresentKHR);
 
-	//HOOK_PROC_FUNC(EnumeratePhysicalDevices);
 
 	// Required to self-intercept for compatibility
 	HOOK_PROC_FUNC(GetDeviceProcAddr);
 
-	{
-		scoped_lock l(global_lock);
-		return device_dispatch[GetKey(device)].GetDeviceProcAddr(device, pName);
+	if (voidFunc != nullptr) {
+		return voidFunc;
 	}
+	else {
+		scoped_lock l(global_lock);
+		voidFunc = device_dispatch[GetKey(vkSharedDevice)].GetDeviceProcAddr(vkSharedDevice, pName);
+		logPrint(std::format("[DEBUG EXTRA] Layer_GetDeviceProcAddr {} using {}, result = {}", pName, (void*)vkSharedDevice, (void*)voidFunc));
+		return voidFunc;
+	}
+
+	//HOOK_PROC_FUNC(EnumeratePhysicalDevices);
 }
 
 // Required for loading negotiations

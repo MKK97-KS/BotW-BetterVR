@@ -11,12 +11,12 @@ VK_INSTANCE_LAYERS=VK_LAYER_BetterVR_Layer
 #;VK_LAYER_KHRONOS_validation
 #;VK_LAYER_RENDERDOC_Capture
 #ENABLE_VULKAN_RENDERDOC_CAPTURE=1</LocalDebuggerEnvironment>
+    <LocalDebuggerCommandArguments>-g "G:\WiiU\Games\Breath Of The Wild\code\U-King.rpx"</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommand>$(SolutionDir)CemuTest\Cemu.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>
-    </LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-g "G:\WiiU\Games\Breath Of The Wild\code\U-King.rpx"</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)CemuTest\</LocalDebuggerWorkingDirectory>
     <LocalDebuggerEnvironment>VK_LAYER_PATH=$(TargetDir);%VK_LAYER_PATH%
 VK_INSTANCE_LAYERS=VK_LAYER_BetterVR_Layer</LocalDebuggerEnvironment>

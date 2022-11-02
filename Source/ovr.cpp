@@ -46,29 +46,34 @@ VkInstance topInstance = VK_NULL_HANDLE;
 
 
 std::vector<VkPhysicalDevice> physicalDevices = {};
+std::vector<VkPhysicalDevice> layerPhysicalDevices = {};
 void OculusVRHook_initialize(VkInstanceCreateInfo *createInfo) {
 	logPrint("Initialized OculusVR workaround!");
-	SetEnvironmentVariableA("VK_INSTANCE_LAYERS", NULL);
-	//SetEnvironmentVariableA("DISABLE_RTSS_LAYER", "1");
-	//SetEnvironmentVariableA("DISABLE_VULKAN_OBS_CAPTURE", "1");
 
 	vulkanModule = LoadLibraryA("vulkan-1.dll");
+	if (vulkanModule == NULL)
+		return;
+
 	PFN_vkGetInstanceProcAddr top_InstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetProcAddress(reinterpret_cast<HMODULE>(vulkanModule), "vkGetInstanceProcAddr"));
 
-	PFN_vkCreateInstance pfn_createInstance = (PFN_vkCreateInstance)top_InstanceProcAddr(NULL, "vkCreateInstance");
 	PFN_vkGetInstanceProcAddr pfn_instanceProcAddr = (PFN_vkGetInstanceProcAddr)top_InstanceProcAddr(NULL, "vkGetInstanceProcAddr");
+	PFN_vkCreateInstance top_createInstance = (PFN_vkCreateInstance)pfn_instanceProcAddr(NULL, "vkCreateInstance");
 
-	pfn_createInstance(createInfo, nullptr, &topInstance);
-	PFN_vkEnumeratePhysicalDevices enumPhysicalDevices = (PFN_vkEnumeratePhysicalDevices)pfn_instanceProcAddr(topInstance, "vkEnumeratePhysicalDevices");
+	checkVkResult(top_createInstance(createInfo, nullptr, &topInstance), "Failed while trying to create a top Vulkan instance to create device!");
+	PFN_vkEnumeratePhysicalDevices top_enumPhysicalDevices = (PFN_vkEnumeratePhysicalDevices)pfn_instanceProcAddr(topInstance, "vkEnumeratePhysicalDevices");
 	
 	uint32_t physicalDeviceCount = 0;
-	enumPhysicalDevices(topInstance, &physicalDeviceCount, nullptr);
+	top_enumPhysicalDevices(topInstance, &physicalDeviceCount, nullptr);
 	physicalDevices.resize(physicalDeviceCount);
-	enumPhysicalDevices(topInstance, &physicalDeviceCount, physicalDevices.data());
+	top_enumPhysicalDevices(topInstance, &physicalDeviceCount, physicalDevices.data());
 	logPrint(std::format("[DEBUG] INITIALIZE PHYSICAL DEVICES: TopInstance = {}, *count = {}", (void*)topInstance, physicalDeviceCount));
 	for (uint32_t i = 0; i < physicalDeviceCount; i++) {
 		logPrint(std::format(" - {}", (void*)physicalDevices[i]));
 	}
+
+	PFN_vkDestroyInstance top_destroyInstance = (PFN_vkDestroyInstance)pfn_instanceProcAddr(topInstance, "vkDestroyInstance");
+	top_destroyInstance(topInstance, nullptr);
+	topInstance = VK_NULL_HANDLE;
 }
 
 VkResult VKAPI_CALL OculusVRHook_CreateInstance(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance) {
@@ -82,7 +87,18 @@ VkResult VKAPI_CALL OculusVRHook_CreateInstance(const VkInstanceCreateInfo* pCre
 }
 
 VkResult VKAPI_CALL OculusVRHook_CreateDevice(VkPhysicalDevice gpu, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice) {
-	VkResult result = ovr_CreateDevice(physicalDevices[0], pCreateInfo, pAllocator, pDevice);
+	PFN_vkEnumeratePhysicalDevices layer_enumPhysicalDevices = (PFN_vkEnumeratePhysicalDevices)saved_GetInstanceProcAddr(oculusInstances.front(), "vkEnumeratePhysicalDevices");
+
+	uint32_t physicalDeviceCount = 0;
+	layer_enumPhysicalDevices(oculusInstances.front(), &physicalDeviceCount, nullptr);
+	layerPhysicalDevices.resize(physicalDeviceCount);
+	layer_enumPhysicalDevices(oculusInstances.front(), &physicalDeviceCount, layerPhysicalDevices.data());
+	logPrint(std::format("[DEBUG] INITIALIZE LAYER PHYSICAL DEVICES: TopInstance = {}, *count = {}", (void*)oculusInstances.front(), physicalDeviceCount));
+	for (uint32_t i = 0; i < physicalDeviceCount; i++) {
+		logPrint(std::format(" - {}", (void*)layerPhysicalDevices[i]));
+	}
+
+	VkResult result = ovr_CreateDevice(layerPhysicalDevices[0], pCreateInfo, pAllocator, pDevice);
 	oculusDevices.emplace_back(*pDevice);
 	logPrint(std::format("Created new OculusVR device {} with these extensions:", (void*)*pDevice));
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; i++) {
@@ -92,7 +108,7 @@ VkResult VKAPI_CALL OculusVRHook_CreateDevice(VkPhysicalDevice gpu, const VkDevi
 }
 
 void VKAPI_CALL OculusVRHook_DestroyInstance(VkInstance instance, const VkAllocationCallbacks* pAllocator) {
-	logPrint(std::format("Destroyed SteamVR instance {}", (void*)instance));
+	logPrint(std::format("Destroyed OVR instance {}", (void*)instance));
 	ovr_DestroyInstance(instance, pAllocator);
 	oculusInstances.remove(instance);
 }
@@ -100,12 +116,12 @@ void VKAPI_CALL OculusVRHook_DestroyInstance(VkInstance instance, const VkAlloca
 void VKAPI_CALL OculusVRHook_DestroyDevice(VkDevice device, const VkAllocationCallbacks* pAllocator) {
 	ovr_DestroyDevice(device, pAllocator);
 	oculusDevices.remove(device);
-	logPrint(std::format("Destroyed SteamVR device {}", (void*)device));
+	logPrint(std::format("Destroyed OVR device {}", (void*)device));
 }
 
 VkResult VKAPI_CALL OculusVRHook_EnumeratePhysicalDevices(VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices) {
 	VkResult result = ovr_EnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices);
-	logPrint(std::format("Enumerated {} physical devices in SteamVR with this instance {}", (uint32_t)*pPhysicalDeviceCount, (void*)instance));
+	logPrint(std::format("Enumerated {} physical devices in OVR with this instance {}", (uint32_t)*pPhysicalDeviceCount, (void*)instance));
 	if (pPhysicalDevices != nullptr) {
 		for (uint32_t i = 0; i < *pPhysicalDeviceCount; i++) {
 			logPrint(std::format(" - {}", (void*)pPhysicalDevices[i]));
@@ -118,22 +134,61 @@ PFN_vkVoidFunction VKAPI_CALL OculusVRHook_GetInstanceProcAddr(VkInstance instan
 	PFN_vkGetInstanceProcAddr top_InstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetProcAddress(reinterpret_cast<HMODULE>(vulkanModule), "vkGetInstanceProcAddr"));
 
 	// Capture TopInstance by waiting till the hooked CreateInstance gets used, which it'll try to use next time!
-	if (instance != nullptr && !oculusInstances.empty() && topVkInstance == nullptr) {
-		topVkInstance = instance;
-		logDebugPrintAddr(std::format("[DEBUG] Found top level instance {} from created SteamVR instance {}!", (void*)topVkInstance, (void*)oculusInstances.front()));
-	}
+	//if (instance != nullptr && !oculusInstances.empty() && topVkInstance == nullptr) {
+	//	topVkInstance = instance;
+	//	logDebugPrintAddr(std::format("[DEBUG] Found top level instance {} from created SteamVR instance {}!", (void*)topVkInstance, (void*)oculusInstances.front()));
+	//}
 
 	HOOK_OCULUS_FUNC(CreateInstance, saved_GetInstanceProcAddr(instance, pName));
-	HOOK_OCULUS_FUNC(CreateDevice, top_InstanceProcAddr(instance, pName));
+	HOOK_OCULUS_FUNC(CreateDevice, saved_GetInstanceProcAddr(instance, pName));
 	HOOK_OCULUS_FUNC(DestroyInstance, saved_GetInstanceProcAddr(instance, pName));
 	HOOK_OCULUS_FUNC(DestroyDevice, saved_GetInstanceProcAddr(instance, pName));
 
-	return saved_GetInstanceProcAddr(instance, pName);
+	PFN_vkVoidFunction funcRet = nullptr;
+	std::string resolvedUsing = "UNKNOWN";
+	if (instance == nullptr) {
+		funcRet = top_InstanceProcAddr(nullptr, pName);
+		resolvedUsing = "NULL instance, so top_InstanceProcAddr";
+		__debugbreak();
+	}
+	else if (instance == vkSharedInstance) {
+		funcRet = saved_GetInstanceProcAddr(instance, pName);
+		resolvedUsing = std::format("vkInstance={} == sharedInstance={}, saved_GetInstanceProcAddr", (void*)instance, (void*)vkSharedInstance);
+	}
+	else if (instance == topVkInstance) {
+		{
+			scoped_lock l(global_lock);
+			funcRet = instance_dispatch[GetKey(vkSharedInstance)].GetInstanceProcAddr(vkSharedInstance, pName);
+		}
+		resolvedUsing = std::format("use instance dispatch table", (void*)topVkInstance);
+		if (funcRet == nullptr) {
+			scoped_lock l(global_lock);
+			funcRet = device_dispatch[GetKey(vkSharedDevice)].GetDeviceProcAddr(vkSharedDevice, pName);
+			resolvedUsing = std::format("use device dispatch table", (void*)topVkInstance);
+		}
+	}
+
+#if FUNC_LOGGING_LEVEL == 2
+	if (funcRet == nullptr) {
+		logDebugPrintAddr(std::format("[DEBUG] TopInstance={} TopDevice={} SharedInstance={} SharedDevice={} ParameterInstance={}", (void*)topVkInstance, (void*)topVkDevice, (void*)vkSharedInstance, (void*)vkSharedDevice, (void*)instance));
+		logDebugPrintAddr(std::format("[ERROR] Using {}: vkGet*ProcAddr(name=\"{}\") returned {}", resolvedUsing, pName, (void*)funcRet));
+	}
+	else {
+		//logDebugPrintAddr(std::format("[DEBUG] Using {}: vkGet*ProcAddr(name=\"{}\") returned {}", resolvedUsing, pName, (void*)funcRet));
+	}
+#elif FUNC_LOGGING_LEVEL == 1
+	if (funcRet == nullptr) {
+		logDebugPrintAddr(std::format("[ERROR] Using {}: vkGet*ProcAddr(name=\"{}\") returned {}", resolvedUsing, pName, (void*)funcRet));
+	}
+#endif
+
+	return funcRet;
 }
 
 // todo: don't think this is used
 PFN_vkVoidFunction VKAPI_CALL OculusVRHook_GetDeviceProcAddr(VkDevice device, const char* pName) {
 	PFN_vkGetDeviceProcAddr top_DeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(GetProcAddress(reinterpret_cast<HMODULE>(vulkanModule), "vkGetDeviceProcAddr"));
+	__debugbreak();
 
 	return top_DeviceProcAddr(device, pName);
 }

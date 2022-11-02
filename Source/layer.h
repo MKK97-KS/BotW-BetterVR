@@ -85,6 +85,7 @@ PFN_vkVoidFunction VKAPI_CALL SteamVRHook_GetDeviceProcAddr(VkDevice device, con
 
 // OculusVR hook
 extern std::vector<VkPhysicalDevice> physicalDevices;
+extern std::vector<VkPhysicalDevice> layerPhysicalDevices;
 void OculusVRHook_initialize(VkInstanceCreateInfo* createInfo);
 PFN_vkVoidFunction VKAPI_CALL OculusVRHook_GetInstanceProcAddr(VkInstance instance, const char* pName);
 PFN_vkVoidFunction VKAPI_CALL OculusVRHook_GetDeviceProcAddr(VkDevice device, const char* pName);

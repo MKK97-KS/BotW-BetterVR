@@ -79,7 +79,7 @@ std::vector<XrSwapchainImageVulkan2KHR> RND_EnumerateSwapchainImages(XrSwapchain
 }
 
 void RND_InitRendering() {
-	xrSessionHandle = XR_CreateSession(currRuntime == STEAMVR_RUNTIME ? topVkInstance : vkSharedInstance, vkSharedDevice, vkSharedPhysicalDevice);
+	xrSessionHandle = XR_CreateSession(currRuntime == STEAMVR_RUNTIME ? topVkInstance : vkSharedInstance, vkSharedDevice, currRuntime == STEAMVR_RUNTIME ? vkSharedPhysicalDevice : physicalDevices.front());
 	xrViewConfs = XR_CreateViewConfiguration();
 	xrSwapchains[0] = RND_CreateSwapchain(xrSessionHandle, xrViewConfs[0]);
 	xrSwapchains[1] = RND_CreateSwapchain(xrSessionHandle, xrViewConfs[1]);

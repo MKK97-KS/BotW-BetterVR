@@ -130,7 +130,7 @@ void XR_initInstance() {
 	if (runtimeUsed == "Oculus") {
 		currRuntime = OCULUS_RUNTIME;
 	}
-	else if (runtimeUsed == "SteamVR") {
+	else if (runtimeUsed == "SteamVR" || runtimeUsed == "SteamVR/OpenXR") {
 		currRuntime = STEAMVR_RUNTIME;
 	}
 	else {
@@ -278,7 +278,7 @@ XrSession XR_CreateSession(VkInstance vkInstance, VkDevice vkDevice, VkPhysicalD
 	XrGraphicsBindingVulkan2KHR xrVulkanBindings = { XR_TYPE_GRAPHICS_BINDING_VULKAN2_KHR };
 	xrVulkanBindings.instance = vkInstance;
 	xrVulkanBindings.device = vkDevice;
-	xrVulkanBindings.physicalDevice = vkPhysicalDevice;
+	xrVulkanBindings.physicalDevice = physicalDevices.front();
 	xrVulkanBindings.queueFamilyIndex = 0;
 	xrVulkanBindings.queueIndex = 0;
 
