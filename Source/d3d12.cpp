@@ -182,16 +182,6 @@ void D3D12_CreateShaderPipeline(DXGI_FORMAT swapchainFormat, uint32_t swapchainC
 	};
 
 	auto createSignature = []() {
-		//D3D12_DESCRIPTOR_RANGE vertexRange[] = {
-		//	// Screen indices
-		//	{
-		//		.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
-		//		.NumDescriptors = 1,
-		//		.BaseShaderRegister = 0,
-		//		.RegisterSpace = 0,
-		//		.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
-		//	}
-		//};
 		D3D12_DESCRIPTOR_RANGE pixelRange[] = {
 			// Input texture
 			{
@@ -224,9 +214,9 @@ void D3D12_CreateShaderPipeline(DXGI_FORMAT swapchainFormat, uint32_t swapchainC
 
 		D3D12_STATIC_SAMPLER_DESC textureSampler = {
 			.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT,
-			.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-			.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-			.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+			.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+			.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+			.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 			.MipLODBias = 0,
 			.MaxAnisotropy = 0,
 			.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
@@ -386,11 +376,6 @@ HANDLE D3D12_CreateSharedTexture(uint32_t width, uint32_t height, DXGI_FORMAT fo
 		.Flags = D3D12_RESOURCE_FLAG_NONE
 	};
 
-	D3D12_CLEAR_VALUE clearValue = {
-		.Format = format,
-		.Color = { 0.0f, 0.0f, 0.0f, 1.0f }
-	};
-
 	D3D12_HEAP_PROPERTIES heapProp = {
 		.Type = D3D12_HEAP_TYPE_DEFAULT,
 		.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
@@ -433,20 +418,24 @@ HANDLE D3D12_CreateSharedTexture(uint32_t width, uint32_t height, DXGI_FORMAT fo
 void D3D12_RenderFrameToSwapchain(uint32_t textureIdx, ID3D12Resource* swapchain, uint32_t swapchainWidth, uint32_t swapchainHeight) {
 	auto& texture = d3d12RenderPass.sharedTextures[textureIdx];
 
-	D3D12_CommandContext<false> renderFrameContext([textureIdx, &texture, swapchain, swapchainWidth, swapchainHeight](ID3D12GraphicsCommandList* cmdList) {
+	D3D12_CommandContext<true> renderFrameContext([textureIdx, &texture, swapchain, swapchainWidth, swapchainHeight](ID3D12GraphicsCommandList* cmdList) {
 		cmdList->SetPipelineState(d3d12RenderPass.pipelineState.Get());
 		cmdList->SetGraphicsRootSignature(d3d12RenderPass.signature.Get());
-
-		// Set texture heap
-		ID3D12DescriptorHeap* heaps[] = { d3d12RenderPass.sharedTexturesHeap.Get() };
-		cmdList->SetDescriptorHeaps(std::size(heaps), heaps);
-
+		
+		// Set framebuffer
 		D3D12_VIEWPORT viewportSize = { 0.0f, 0.0f, (float)swapchainWidth, (float)swapchainHeight, 0.0f, 1.0f };
 		cmdList->RSSetViewports(1, &viewportSize);
 
 		D3D12_RECT scissorRect = { 0, 0, (LONG)swapchainWidth, (LONG)swapchainHeight };
 		cmdList->RSSetScissorRects(1, &scissorRect);
 
+		// Set shared texture with framebuffer
+		ID3D12DescriptorHeap* heaps[] = { d3d12RenderPass.sharedTexturesHeap.Get() };
+		cmdList->SetDescriptorHeaps(std::size(heaps), heaps);
+
+		cmdList->SetGraphicsRootDescriptorTable(0, d3d12RenderPass.sharedTexturesHeap->GetGPUDescriptorHandleForHeapStart());
+
+		// Set render target
 		// todo: Do this once per swapchain since this might be costly?
 		D3D12_CPU_DESCRIPTOR_HANDLE renderTargetView = d3d12RenderPass.colorTargetDescHeap->GetCPUDescriptorHandleForHeapStart();
 		D3D12_RENDER_TARGET_VIEW_DESC renderTargetViewDesc = {};

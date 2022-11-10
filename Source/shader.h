@@ -20,7 +20,11 @@ PSInput VSMain(VSInput input) {
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
-    float4 sampledTexture = g_texture.Sample(g_sampler, input.uv); // float4(input.uv.x, input.uv.y, 0.0, 1.0);
+	float4 renderColor = float4(0.0, 1.0, 1.0, 1.0);
+	float2 samplePosition = input.uv;
+	samplePosition.x /= 2.0;
+    float4 sampledTexture = g_texture.Sample(g_sampler, samplePosition); // float4(input.uv.x, input.uv.y, 0.0, 1.0);
+	
 	return float4(sampledTexture.x, sampledTexture.y, sampledTexture.z, 1.0);
 }
 )_";

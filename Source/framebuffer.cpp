@@ -83,7 +83,7 @@ VK_LAYER_EXPORT void VKAPI_CALL Layer_CmdBindDescriptorSets(VkCommandBuffer comm
 		if (descriptorSet != bestDescriptorSets.end()) {
 			VkExtent2D imageResolution = bestImageResolution[descriptorSet->second];
 			if (imageResolution.width != 0 && imageResolution.height != 0) {
-				logPrint(std::format("Binding image that likely contains framebuffer!"));
+				//logPrint(std::format("Binding image that likely contains framebuffer!"));
 				unscaledImages.emplace_back(descriptorSet->second);
 			}
 		}
@@ -152,7 +152,7 @@ VK_LAYER_EXPORT void VKAPI_CALL Layer_CmdEndRenderPass(VkCommandBuffer commandBu
 			// If framebuffer was found and it's (one of) the last render pass of the frame, copy any texture buffers that match the unscaled viewport resolution
 			checkAssert(unscaledImages.size());			
 			for (const VkImage& image : unscaledImages) {
-				logPrint(std::format("Pick image {}", (void*)image));				
+				//logPrint(std::format("Pick image {}", (void*)image));				
 				RND_RenderFrame(XR_NULL_HANDLE, commandBuffer, image);
 			}
 

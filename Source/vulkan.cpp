@@ -115,7 +115,7 @@ void RNDVK_CopyImage(VkCommandBuffer currCmdBuffer, VkImage srcImage, VkImage ds
     copyRegion.extent.height = FB_GetFrameDimensions().height;
     copyRegion.extent.depth = 1;
     device_dispatch[GetKey(vkSharedDevice)].CmdCopyImage(currCmdBuffer, srcImage, VK_IMAGE_LAYOUT_UNDEFINED, dstImage, VK_IMAGE_LAYOUT_GENERAL, 1, &copyRegion);
-    logPrint("Copied the source image to the VR presenting image!");
+    //logPrint("Copied the source image to the VR presenting image!");
 
  //   const VkClearColorValue pColor = {
 	//	1.0f, 1.0f, 1.0f, 1.0f
