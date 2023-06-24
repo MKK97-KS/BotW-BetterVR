@@ -89,6 +89,8 @@ lis r31, data_cameraMatrixOut@ha
 addi r31, r31, data_cameraMatrixOut@l
 b import.coreinit.hook_UpdateCamera
 
+blr ; will return if the hook isn't connected since otherwise it'll jump to continueCodeAddr
+
 continueCodeAddr:
 lis r7, tempStuff@ha
 lwz r31, tempStuff@l(r7)

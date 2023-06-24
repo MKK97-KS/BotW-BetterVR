@@ -3,8 +3,17 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
+
 0x030C16D0 = sead_PerspectiveProjection_setFovy:
 
+default_AspectRatio:
+.float 1.77777779
+default_FovY:
+.float 1.04719758
+default_OffsetX:
+.float 0.0
+default_OffsetY:
+.float 0.0
 
 ASPECT_RATIO_STACK_OFFSET = 0x14
 FOVY_STACK_OFFSET = 0x18
@@ -15,6 +24,21 @@ updateLookAtProjectionMatrix:
 mflr r0
 stwu r1, -0x28(r1)
 stw r0, 0x2C(r1)
+
+mr r0, r28
+lis r28, default_AspectRatio@ha
+lfs f0, default_AspectRatio@l(r28)
+stfs f0, ASPECT_RATIO_STACK_OFFSET(r1)
+lis r28, default_FovY@ha
+lfs f0, default_FovY@l(r28)
+stfs f0, FOVY_STACK_OFFSET(r1)
+lis r28, default_OffsetX@ha
+lfs f0, default_OffsetX@l(r28)
+stfs f0, OFFSET_X_STACK_OFFSET(r1)
+lis r28, default_OffsetY@ha
+lfs f0, default_OffsetY@l(r28)
+stfs f0, OFFSET_Y_STACK_OFFSET(r1)
+mr r28, r0
 
 addi r28, r1, 0x14
 bl import.coreinit.hook_UpdateProjectionMatrix
