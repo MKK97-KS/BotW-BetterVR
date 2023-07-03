@@ -1,6 +1,6 @@
 #include "swapchain.h"
-#include "instance.h"
 #include "../utils/d3d12_utils.h"
+#include "instance.h"
 
 template <DXGI_FORMAT T>
 Swapchain<T>::Swapchain(uint32_t width, uint32_t height, uint32_t sampleCount): m_width(width), m_height(height) {
@@ -41,7 +41,7 @@ Swapchain<T>::Swapchain(uint32_t width, uint32_t height, uint32_t sampleCount): 
     std::vector<XrSwapchainImageD3D12KHR> swapchainImages(swapchainImagesCount, { XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR });
     checkXRResult(xrEnumerateSwapchainImages(m_swapchain, swapchainImagesCount, &swapchainImagesCount, reinterpret_cast<XrSwapchainImageBaseHeader*>(swapchainImages.data())), "Failed to enumerate swapchain images!");
 
-    for (size_t i=0; i<swapchainImages.size(); i++) {
+    for (size_t i = 0; i < swapchainImages.size(); i++) {
         // D3D12Utils::CreateConstantBuffer(D3D12_HEAP_TYPE_DEFAULT);
         swapchainImages[i].texture->SetName(std::format(L"Swapchain Image {}", i).c_str());
         m_swapchainTextures.emplace_back(swapchainImages[i].texture);

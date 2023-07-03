@@ -4,9 +4,9 @@
 #include "utils/d3d12_utils.h"
 
 std::array<CaptureTexture, 3> captureTextures = {
-    CaptureTexture{ false, { 0, 0 }, VK_NULL_HANDLE, VK_FORMAT_B10G11R11_UFLOAT_PACK32, { 1280, 720 }, { nullptr, nullptr }, { false, false}, VK_NULL_HANDLE },
-    CaptureTexture{ false, { 0, 0 }, VK_NULL_HANDLE, VK_FORMAT_D32_SFLOAT, { 1280, 720 }, { nullptr, nullptr },  { false, false}, VK_NULL_HANDLE },
-    CaptureTexture{ false, { 0, 0 }, VK_NULL_HANDLE, VK_FORMAT_A2B10G10R10_UNORM_PACK32, { 1280, 720 }, { nullptr, nullptr },  { false, false}, VK_NULL_HANDLE }
+    CaptureTexture{ false, { 0, 0 }, VK_NULL_HANDLE, VK_FORMAT_B10G11R11_UFLOAT_PACK32, { 1280, 720 }, { nullptr, nullptr }, { false, false }, VK_NULL_HANDLE },
+    CaptureTexture{ false, { 0, 0 }, VK_NULL_HANDLE, VK_FORMAT_D32_SFLOAT, { 1280, 720 }, { nullptr, nullptr }, { false, false }, VK_NULL_HANDLE },
+    CaptureTexture{ false, { 0, 0 }, VK_NULL_HANDLE, VK_FORMAT_A2B10G10R10_UNORM_PACK32, { 1280, 720 }, { nullptr, nullptr }, { false, false }, VK_NULL_HANDLE }
 };
 std::atomic_size_t foundResolutions = captureTextures.size();
 
@@ -36,11 +36,14 @@ void VkDeviceOverrides::DestroyImage(const vkroots::VkDeviceDispatch* pDispatch,
     }
 }
 
+
+std::array<bool, 2> flipsides = { false, false };
+
 void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDispatch, VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
     // check for magical clear values
     if (pColor->float32[1] >= 0.12 && pColor->float32[1] <= 0.13 && pColor->float32[2] >= 0.97 && pColor->float32[2] <= 0.99) {
         // r value in magical clear value is the capture idx after rounding down
-        const long captureIdx = std::lroundf(pColor->float32[0]*32.0f);
+        const long captureIdx = std::lroundf(pColor->float32[0] * 32.0f);
         auto& capture = captureTextures[captureIdx];
 
         // this is a hack since the game clears the 2D layer twice, and we want to only capture the first one
@@ -53,7 +56,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
         // this is a hack since the game will eventually overlap multiple textures on top of
         if (capture.initialized && capture.foundImage != image) {
             // clear the image to be transparent to allow for the HUD to be rendered on top of it which results in a transparent HUD layer
-            const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
+            const_cast<VkClearColorValue*>(pColor)[0] = { 1.0f, 1.0f, 0.5f, 0.0f };
             return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
         }
 
@@ -72,7 +75,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
             }
             capture.initialized = true;
             capture.foundSize = it->second.first;
-            checkAssert(capture.format == it->second.second, std::format("[WARNING] Got {} as VkFormat instead of the expected {}", it->second.second, capture.format).c_str());
+            checkAssert(capture.format == it->second.second, std::format("Got {} as VkFormat instead of the expected {}", it->second.second, capture.format).c_str());
 
             capture.sharedTextures[OpenXR::EyeSide::LEFT] = std::make_unique<SharedTexture>(capture.foundSize.width, capture.foundSize.height, capture.format, D3D12Utils::ToDXGIFormat(capture.format));
             capture.sharedTextures[OpenXR::EyeSide::RIGHT] = std::make_unique<SharedTexture>(capture.foundSize.width, capture.foundSize.height, capture.format, D3D12Utils::ToDXGIFormat(capture.format));
@@ -96,8 +99,6 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
                     sharedTextures[OpenXR::EyeSide::RIGHT]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
                     context->Signal(sharedTextures[OpenXR::EyeSide::LEFT].get(), 0);
                     context->Signal(sharedTextures[OpenXR::EyeSide::RIGHT].get(), 0);
-                    Log::print("[left] texture {}: Initializing semaphore to value 0", captureIdx);
-                    Log::print("[right] texture {}: Initializing semaphore to value 0", captureIdx);
                 });
             }
 
@@ -109,8 +110,6 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
 
         if (capture.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) {
             capture.isCapturingSharedTextures[VRManager::instance().XR->GetRenderer()->m_layer2D.GetCurrentSide()] = true;
-            Log::print("[{}] texture {}: Waiting for semaphore value {}", VRManager::instance().XR->GetRenderer()->m_layer2D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right", captureIdx, 0);
-            Log::print("[{}] texture {}: Copying texture", VRManager::instance().XR->GetRenderer()->m_layer2D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right", captureIdx);
             capture.sharedTextures[VRManager::instance().XR->GetRenderer()->m_layer2D.GetCurrentSide()]->CopyFromVkImage(commandBuffer, image);
             VRManager::instance().XR->GetRenderer()->m_layer2D.AddTexture(VRManager::instance().XR->GetRenderer()->m_layer2D.GetCurrentSide(), capture.sharedTextures[VRManager::instance().XR->GetRenderer()->m_layer2D.GetCurrentSide()].get());
             VRManager::instance().XR->GetRenderer()->m_layer2D.FlipSide();
@@ -120,9 +119,6 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
         }
         else {
             capture.isCapturingSharedTextures[VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide()] = true;
-            Log::print("[{}] texture {}: Waiting for semaphore value {}", VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right", captureIdx, 0);
-            Log::print("[{}] texture {}: Copying texture", VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right", captureIdx);
-
             capture.sharedTextures[VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide()]->CopyFromVkImage(commandBuffer, image);
             VRManager::instance().XR->GetRenderer()->m_layer3D.AddTexture(VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide(), capture.sharedTextures[VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide()].get());
             // delay flipping until depth buffer is also captured
@@ -185,8 +181,6 @@ void VRLayer::VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDevi
                     context->GetRecordList()->SetName(L"transitionInitialTextures");
                     sharedTextures[OpenXR::EyeSide::LEFT]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
                     sharedTextures[OpenXR::EyeSide::RIGHT]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
-                    Log::print("[left] texture {}: Initializing semaphore to value 0", captureIdx);
-                    Log::print("[right] texture {}: Initializing semaphore to value 0", captureIdx);
                     context->Signal(sharedTextures[OpenXR::EyeSide::LEFT].get(), 0);
                     context->Signal(sharedTextures[OpenXR::EyeSide::RIGHT].get(), 0);
                 });
@@ -195,8 +189,6 @@ void VRLayer::VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDevi
             lockImageResolutions.unlock();
         }
         capture.foundImage = image;
-        Log::print("[{}] texture {}: Waiting for semaphore value {}", VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right", captureIdx, 0);
-        Log::print("[{}] texture {}: Copying texture", VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right", captureIdx);
         capture.isCapturingSharedTextures[VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide()] = true;
         capture.sharedTextures[VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide()]->CopyFromVkImage(commandBuffer, image);
         capture.captureCmdBuffer = commandBuffer;
@@ -269,10 +261,9 @@ VkResult VkDeviceOverrides::QueueSubmit(const vkroots::VkDeviceDispatch* pDispat
 
             // insert timeline semaphores
             for (uint32_t j = 0; j < submitInfo.commandBufferCount; j++) {
-                for (uint32_t l = 0; l < captureTextures.size(); l++) { // fixme: revert to auto& capture : captureTextures
-                    auto& capture = captureTextures[l];
+                for (auto& capture : captureTextures) {
                     if (submitInfo.pCommandBuffers[j] == capture.captureCmdBuffer) {
-                        for (size_t k=0; k<capture.isCapturingSharedTextures.size(); k++) {
+                        for (size_t k = 0; k < capture.isCapturingSharedTextures.size(); k++) {
                             if (capture.isCapturingSharedTextures[k]) {
                                 // wait for D3D12/XR to finish with previous shared texture render
                                 modifiedSubmitInfo.waitSemaphores.emplace_back(capture.sharedTextures[k]->GetSemaphore());
@@ -282,7 +273,6 @@ VkResult VkDeviceOverrides::QueueSubmit(const vkroots::VkDeviceDispatch* pDispat
                                 // signal to D3D12/XR rendering that the shared texture can be rendered to VR headset
                                 modifiedSubmitInfo.signalSemaphores.emplace_back(capture.sharedTextures[k]->GetSemaphore());
                                 modifiedSubmitInfo.timelineSignalValues.emplace_back(1);
-                                Log::print("[{}] texture {}: Signaling semaphore to value {}", k == 0 ? "left" : "right", l, modifiedSubmitInfo.timelineSignalValues.back());
                                 capture.isCapturingSharedTextures[k] = false;
                             }
                         }

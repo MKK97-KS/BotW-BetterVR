@@ -23,10 +23,10 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_UpdateProjectionMatrix", &hook_UpdateProjectionMatrix);
         //osLib_registerHLEFunction("coreinit", "hook_UpdateInterface", &hook_UpdateInterface);
     };
-    ~CemuHooks() {
-    };
+    ~CemuHooks(){};
 
     static data_VRSettingsIn GetSettings();
+
 private:
     osLib_registerHLEFunctionPtr_t osLib_registerHLEFunction;
     memory_getBasePtr_t memory_getBase;

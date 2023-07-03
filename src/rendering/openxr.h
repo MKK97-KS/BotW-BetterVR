@@ -31,6 +31,7 @@ public:
     XrSession GetSession() { return m_session; }
     XrView GetPredictedView(EyeSide side) { return m_updatedViews[side]; };
     RND_Renderer* GetRenderer() { return m_renderer.get(); }
+
 private:
     XrInstance m_instance = XR_NULL_HANDLE;
     XrSystemId m_systemId = XR_NULL_SYSTEM_ID;

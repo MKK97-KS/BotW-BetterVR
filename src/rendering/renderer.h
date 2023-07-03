@@ -40,6 +40,7 @@ public:
         [[nodiscard]] Status GetStatus() const { return m_status; };
         void FlipSide() { this->m_currentSide = (this->m_currentSide == OpenXR::LEFT) ? OpenXR::RIGHT : OpenXR::LEFT; }
         [[nodiscard]] OpenXR::EyeSide GetCurrentSide() const { return this->m_currentSide; }
+
     protected:
         Status m_status = Status::NOT_RENDERING;
         OpenXR::EyeSide m_currentSide = OpenXR::EyeSide::LEFT;
@@ -75,8 +76,10 @@ protected:
 
         bool ShouldRender() override { return m_textures[OpenXR::EyeSide::LEFT] != nullptr && m_textures[OpenXR::EyeSide::RIGHT] != nullptr; }
         [[nodiscard]] XrFovf GetCurrentFOV() const { return m_currViews[m_currentSide].fov; }
+        [[nodiscard]] XrFovf GetFOV(OpenXR::EyeSide side) const { return m_currViews[side].fov; }
         [[nodiscard]] XrPosef GetCurrentPose() const { return m_currViews[m_currentSide].pose; }
         [[nodiscard]] XrPosef GetOtherPose() const { return m_currViews[(m_currentSide == OpenXR::EyeSide::LEFT) ? OpenXR::EyeSide::RIGHT : OpenXR::EyeSide::LEFT].pose; }
+
     private:
         std::array<std::unique_ptr<Swapchain<DXGI_FORMAT_R8G8B8A8_UNORM_SRGB>>, 2> m_swapchains;
         std::array<std::unique_ptr<Swapchain<DXGI_FORMAT_D32_FLOAT>>, 2> m_depthSwapchains;
@@ -100,6 +103,7 @@ protected:
         XrCompositionLayerQuad FinishRendering();
 
         bool ShouldRender() override { return m_textures[OpenXR::EyeSide::LEFT] != nullptr || m_textures[OpenXR::EyeSide::RIGHT] != nullptr; }
+
     private:
         std::unique_ptr<Swapchain<DXGI_FORMAT_R8G8B8A8_UNORM_SRGB>> m_swapchain;
         std::unique_ptr<RND_D3D12::PresentPipeline<false>> m_presentPipeline;

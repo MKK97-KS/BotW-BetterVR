@@ -14,6 +14,8 @@
 void CemuHooks::hook_UpdateProjectionMatrix(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
+    Log::print("Updating look-at camera at {:08X}", hCPU->gpr[3]);
+
     XrFovf viewFOV = VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentFOV();
     checkAssert(viewFOV.angleLeft <= viewFOV.angleRight, "OpenXR gave a left FOV that is larger than the right FOV! Behavior is unexpected!");
     checkAssert(viewFOV.angleDown <= viewFOV.angleUp, "OpenXR gave a top FOV that is larger than the bottom FOV! Behavior is unexpected!");
@@ -75,7 +77,7 @@ void CemuHooks::hook_UpdateCamera(PPCInterpreter_t* hCPU) {
 
     // Calculate game view directions
     glm::fvec3 forwardVector = glm::normalize(oldCameraTarget - oldCameraPosition);
-    glm::fquat lookAtQuat = glm::quatLookAtRH(forwardVector, {0.0, 1.0, 0.0});
+    glm::fquat lookAtQuat = glm::quatLookAtRH(forwardVector, { 0.0, 1.0, 0.0 });
 
     // Calculate new view direction
     glm::fquat combinedQuat = glm::normalize(lookAtQuat * currEyeQuat);
@@ -96,8 +98,7 @@ void CemuHooks::hook_UpdateCamera(PPCInterpreter_t* hCPU) {
         .rotY = combinedMatrix[1][1],
         .rotZ = combinedMatrix[1][2],
     };
-
-    // Log::print("[{}] Rendering texture", VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right");
+    Log::print("[{}] Rendering texture", VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right");
 
     // Write the camera matrix to the game's memory
     // Log::print("[{}] New Game Camera: x={}, y={}, z={}, targetX={}, targetY={}, targetZ={}, rotX={}, rotY={}, rotZ={}", VRManager::instance().XR->GetRenderer()->m_layer3D.GetCurrentSide() == OpenXR::EyeSide::LEFT ? "left" : "right", updatedCameraMatrix.posX, updatedCameraMatrix.posY, updatedCameraMatrix.posZ, updatedCameraMatrix.targetX, updatedCameraMatrix.targetY, updatedCameraMatrix.targetZ, updatedCameraMatrix.rotX, updatedCameraMatrix.rotY, updatedCameraMatrix.rotZ);

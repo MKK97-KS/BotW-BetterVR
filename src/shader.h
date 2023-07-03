@@ -103,14 +103,14 @@ struct presentSettings {
     float renderHeight;
     float swapchainWidth;
     float swapchainHeight;
-//    float eyeSeparation;
-//    float showWholeScreen;  // this mode could be used to show each display a part of the screen
-//    float showSingleScreen; // this mode shows the same picture in each eye
-//    float singleScreenScale;
-//    float zoomOutLevel;
-//    float gap0;
-//    float gap1;
-//    float gap2;
+    //    float eyeSeparation;
+    //    float showWholeScreen;  // this mode could be used to show each display a part of the screen
+    //    float showSingleScreen; // this mode shows the same picture in each eye
+    //    float singleScreenScale;
+    //    float zoomOutLevel;
+    //    float gap0;
+    //    float gap1;
+    //    float gap2;
 };
 
 // clang-format off

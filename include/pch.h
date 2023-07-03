@@ -1,8 +1,8 @@
 #pragma once
 
+#include <atomic>
 #include <string>
 #include <type_traits>
-#include <atomic>
 
 #include <Windows.h>
 #include <winrt/base.h>
@@ -21,8 +21,8 @@
 #include "vkroots.h"
 
 #include <d3d12.h>
-#include <dxgi1_6.h>
 #include <D3Dcompiler.h>
+#include <dxgi1_6.h>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -76,5 +76,5 @@ struct data_VRProjectionMatrixOut {
     float offsetY;
 };
 
-#include "utils/logger.h"
 #include "cemu.h"
+#include "utils/logger.h"

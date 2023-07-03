@@ -1,6 +1,6 @@
 #include "texture.h"
-#include "instance.h"
 #include "../utils/d3d12_utils.h"
+#include "instance.h"
 
 Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Format(format) {
     // clang-format off

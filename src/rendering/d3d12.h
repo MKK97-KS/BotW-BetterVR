@@ -63,7 +63,7 @@ public:
 
         std::array<D3D12_CPU_DESCRIPTOR_HANDLE, depth ? 2 : 1> m_attachmentHandles = {};
         std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 1> m_targetHandles = {};
-        std::array<D3D12_CPU_DESCRIPTOR_HANDLE, depth ? 1 : 0> m_depthTargetHandles = { };
+        std::array<D3D12_CPU_DESCRIPTOR_HANDLE, depth ? 1 : 0> m_depthTargetHandles = {};
         ComPtr<ID3D12DescriptorHeap> m_attachmentHeap;
         ComPtr<ID3D12DescriptorHeap> m_targetHeap;
         ComPtr<ID3D12DescriptorHeap> m_depthHeap;
@@ -111,6 +111,7 @@ public:
         ID3D12GraphicsCommandList* GetRecordList() { return this->m_cmdList.Get(); }
         void WaitFor(class Texture* texture, uint64_t value) { this->m_waitFor.push_back({ texture, value }); }
         void Signal(class Texture* texture, uint64_t value) { this->m_signalTo.push_back({ texture, value }); }
+
     private:
         ID3D12Device* m_device;
         ID3D12CommandQueue* m_queue;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "rendering/texture.h"
 #include "rendering/openxr.h"
+#include "rendering/texture.h"
 
 struct CaptureTexture {
     bool initialized;

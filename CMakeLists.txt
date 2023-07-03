@@ -8,9 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Check architecture support
-if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Only x64 architecture is supported")
-endif()
+endif ()
 
 # Set global options
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

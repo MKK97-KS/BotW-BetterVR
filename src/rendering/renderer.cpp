@@ -115,16 +115,16 @@ void RND_Renderer::Layer::UpdatePoses() {
         return; // what should occur when the orientation is invalid? keep rendering using old values?
 
     m_currViews = views;
-//    {
-//        glm::fvec3 positions{ (m_currViews[0].pose.position.x, m_currViews[0].pose.position.y, m_currViews[0].pose.position.z) };
-//        positions = positions * 10.0f;
-//        m_currViews[0].pose.position = { positions.x, positions.y, positions.z };
-//    }
-//    {
-//        glm::fvec3 positions{ (m_currViews[1].pose.position.x, m_currViews[1].pose.position.y, m_currViews[1].pose.position.z) };
-//        positions = positions * 10.0f;
-//        m_currViews[1].pose.position = { positions.x, positions.y, positions.z };
-//    }
+    //    {
+    //        glm::fvec3 positions{ (m_currViews[0].pose.position.x, m_currViews[0].pose.position.y, m_currViews[0].pose.position.z) };
+    //        positions = positions * 10.0f;
+    //        m_currViews[0].pose.position = { positions.x, positions.y, positions.z };
+    //    }
+    //    {
+    //        glm::fvec3 positions{ (m_currViews[1].pose.position.x, m_currViews[1].pose.position.y, m_currViews[1].pose.position.z) };
+    //        positions = positions * 10.0f;
+    //        m_currViews[1].pose.position = { positions.x, positions.y, positions.z };
+    //    }
 }
 
 RND_Renderer::Layer3D::Layer3D(): Layer() {
@@ -173,15 +173,11 @@ void RND_Renderer::Layer3D::Render(OpenXR::EyeSide side) {
 
     RND_D3D12::CommandContext<false> renderSharedTexture(device, queue, allocator, [this, side](RND_D3D12::CommandContext<false>* context) {
         context->GetRecordList()->SetName(L"RenderSharedTexture");
-        Log::print("[{}] texture 0: Waiting for semaphore value {}", side == OpenXR::EyeSide::LEFT ? "left" : "right", 1);
         context->WaitFor(m_textures[side], 1);
-        Log::print("[{}] texture 1: Waiting for semaphore value {}", side == OpenXR::EyeSide::LEFT ? "left" : "right", 1);
         context->WaitFor(m_depthTextures[side], 1);
         m_textures[side]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         m_depthTextures[side]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-        Log::print("[{}] texture 0: Rendering to swapchain texture", side == OpenXR::EyeSide::LEFT ? "left" : "right");
-        Log::print("[{}] texture 1: Rendering to swapchain texture", side == OpenXR::EyeSide::LEFT ? "left" : "right");
         m_presentPipelines[side]->BindAttachment(0, m_textures[side]->d3d12GetTexture());
         m_presentPipelines[side]->BindAttachment(1, m_depthTextures[side]->d3d12GetTexture(), DXGI_FORMAT_R32_FLOAT);
         m_presentPipelines[side]->BindTarget(0, m_swapchains[side]->GetTexture(), m_swapchains[side]->GetFormat());
@@ -190,9 +186,7 @@ void RND_Renderer::Layer3D::Render(OpenXR::EyeSide side) {
 
         m_textures[side]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
         m_depthTextures[side]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
-        Log::print("[{}] texture 0: Signaling semaphore value {}", side == OpenXR::EyeSide::LEFT ? "left" : "right", 0);
         context->Signal(m_textures[side], 0);
-        Log::print("[{}] texture 1: Signaling semaphore value {}", side == OpenXR::EyeSide::LEFT ? "left" : "right", 0);
         context->Signal(m_depthTextures[side], 0);
     });
 
@@ -209,6 +203,7 @@ const std::array<XrCompositionLayerProjectionView, 2>& RND_Renderer::Layer3D::Fi
     this->m_depthSwapchains[OpenXR::EyeSide::LEFT]->FinishRendering();
     this->m_depthSwapchains[OpenXR::EyeSide::RIGHT]->FinishRendering();
 
+    // clang-format off
     m_projectionViews[OpenXR::EyeSide::LEFT] = {
         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
         .next = &m_projectionViewsDepthInfo[OpenXR::EyeSide::LEFT],
@@ -275,6 +270,7 @@ const std::array<XrCompositionLayerProjectionView, 2>& RND_Renderer::Layer3D::Fi
         .nearZ = 0.1f,
         .farZ = 1000.0f,
     };
+    // clang-format on
     return m_projectionViews;
 }
 
@@ -315,30 +311,24 @@ void RND_Renderer::Layer2D::Render(OpenXR::EyeSide side) {
 
         // wait for both since we only have one 2D swap buffer to render to
         if (m_textures[OpenXR::EyeSide::LEFT]) {
-            Log::print("[left] texture 2: Waiting for semaphore value {}", 1);
             // fixme: Why do we signal to the global command list instead of the local one?!
             context->WaitFor(m_textures[OpenXR::EyeSide::LEFT], 1);
             m_textures[OpenXR::EyeSide::LEFT]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         }
         if (m_textures[OpenXR::EyeSide::RIGHT]) {
-            Log::print("[right] texture 2: Waiting for semaphore value {}", 1);
             context->WaitFor(m_textures[OpenXR::EyeSide::RIGHT], 1);
             m_textures[OpenXR::EyeSide::RIGHT]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         }
 
-        Log::print("[left] texture 2: Rendering to swapchain texture");
-        Log::print("[right] texture 2: Rendering to swapchain texture");
         m_presentPipeline->BindAttachment(0, m_textures[side]->d3d12GetTexture());
         m_presentPipeline->BindTarget(0, m_swapchain->GetTexture(), m_swapchain->GetFormat());
         m_presentPipeline->Render(context->GetRecordList(), m_swapchain->GetTexture());
 
         if (m_textures[OpenXR::EyeSide::LEFT] != nullptr) {
-            Log::print("[left] texture 2: Signaling semaphore value {}", 0);
             m_textures[OpenXR::EyeSide::LEFT]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
             context->Signal(m_textures[OpenXR::EyeSide::LEFT], 0);
         }
         if (m_textures[OpenXR::EyeSide::RIGHT] != nullptr) {
-            Log::print("[right] texture 2: Signaling semaphore value {}", 0);
             m_textures[OpenXR::EyeSide::RIGHT]->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
             context->Signal(m_textures[OpenXR::EyeSide::RIGHT], 0);
         }
@@ -366,6 +356,7 @@ XrCompositionLayerQuad RND_Renderer::Layer2D::FinishRendering() {
     float width = aspectRatio > 1.0f ? aspectRatio : 1.0f;
     float height = aspectRatio <= 1.0f ? 1.0f / aspectRatio : 1.0f;
 
+    // clang-format off
     return {
         .type = XR_TYPE_COMPOSITION_LAYER_QUAD,
         .layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT,
@@ -382,6 +373,7 @@ XrCompositionLayerQuad RND_Renderer::Layer2D::FinishRendering() {
             }
         },
         .pose = spaceLocation.pose,
-        .size = { width*QUAD_SIZE, height*QUAD_SIZE }
+        .size = { width * QUAD_SIZE, height * QUAD_SIZE }
     };
+    // clang-format on
 }
