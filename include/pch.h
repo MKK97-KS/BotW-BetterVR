@@ -37,6 +37,9 @@ using Microsoft::WRL::ComPtr;
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
+template <typename T1, typename T2>
+constexpr bool HAS_FLAG(T1 flags, T2 test_flag) { return (flags & (T1)test_flag) == (T1)test_flag; }
+
 template <typename T>
 inline T swapEndianness(T val) {
     if constexpr (std::is_floating_point<T>::value) {
@@ -88,6 +91,10 @@ class BEType {
 public:
     T val;
 
+    BEType() = default;
+
+    BEType(T x) : val(swapEndianness(x)) {}
+
     explicit operator T() {
         return swapEndianness(val);
     }
@@ -101,6 +108,15 @@ public:
         val = other.val;
         return *this;
     }
+
+    T getLE() const {
+        return swapEndianness(val);
+    }
+
+    T getBE() const {
+        return val;
+    }
+
 
     bool operator ==(const BEType<T>& other) const { return val == other.val; }
     bool operator ==(const T& other) const { return swapEndianness(val) == other; }

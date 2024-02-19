@@ -26,6 +26,7 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_CreateNewScreen", &hook_CreateNewScreen);
         osLib_registerHLEFunction("coreinit", "hook_UpdateActorList", &hook_UpdateActorList);
         osLib_registerHLEFunction("coreinit", "hook_CreateNewActor", &hook_CreateNewActor);
+        osLib_registerHLEFunction("coreinit", "hook_InjectXRInput", &hook_InjectXRInput);
     };
     ~CemuHooks() {
         FreeLibrary(m_cemuHandle);
@@ -52,7 +53,9 @@ private:
     static void hook_CreateNewScreen(PPCInterpreter_t* hCPU);
     static void hook_UpdateActorList(PPCInterpreter_t* hCPU);
     static void hook_CreateNewActor(PPCInterpreter_t* hCPU);
-    static void updateFrames();
+    static void hook_InjectXRInput(PPCInterpreter_t* hCPU);
+
+    [[maybe_unused]] static void updateFrames();
 
     static void writeMemoryBE(uint64_t offset, Matrix34* mtxPtr) {
         writeMemoryBE(offset + offsetof(Matrix34, x_x), &mtxPtr->x_x);

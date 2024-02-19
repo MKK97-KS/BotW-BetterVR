@@ -16,9 +16,6 @@ void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
     data_VRSettingsIn settings = {};
 
     readMemory(ppc_settingsOffset, &settings);
-    swapEndianness(settings.cameraModeSetting);
-    swapEndianness(settings.guiFollowSetting);
-    swapEndianness(settings.alternatingEyeRenderingSetting);
 
     std::lock_guard<std::mutex> lock(g_settingsMutex);
     g_settings = settings;

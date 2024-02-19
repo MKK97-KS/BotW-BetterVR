@@ -15,14 +15,16 @@ AlternatingEyeRenderingSetting:
 .int $AER
 
 
-vr_updateSettings:
-addi r1, r1, -12
-stw r3, 0x0(r1)
-stw r5, 0x4(r1)
-mflr r5
-stw r5, 0x8(r1)
+testStuff:
+blr
 
-li r4, -1 ; Execute the instruction that got replaced
+
+vr_updateSettings:
+addi r1, r1, -0x08
+stw r3, 0x04(r1)
+stw r5, 0x08(r1)
+mflr r5
+stw r5, 0x0C(r1)
 
 lis r5, data_settingsOffset@ha
 addi r5, r5, data_settingsOffset@l
@@ -36,12 +38,13 @@ bne notSpawnActor
 bl vr_spawnEquipment
 notSpawnActor:
 
+li r4, -1 ; Execute the instruction that got replaced
 
-lwz r5, 0x8(r1)
+lwz r5, 0x0C(r1)
 mtlr r5
-lwz r5, 0x4(r1)
-lwz r3, 0x0(r1)
-addi r1, r1, 12
+lwz r5, 0x08(r1)
+lwz r3, 0x04(r1)
+addi r1, r1, 0x08
 b 0x031faaf4
 
 0x031FAAF0 = ba vr_updateSettings

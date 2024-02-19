@@ -204,6 +204,38 @@ void OpenXR::CreateActions() {
         selectActionInfo.subactionPaths = m_handPaths.data();
         checkXRResult(xrCreateAction(m_gameplayActionSet, &selectActionInfo, &m_selectAction), "Failed to create select action!");
 
+        XrActionCreateInfo cancelActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
+        cancelActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+        strcpy_s(cancelActionInfo.actionName, "cancel");
+        strcpy_s(cancelActionInfo.localizedActionName, "Cancel");
+        cancelActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
+        cancelActionInfo.subactionPaths = m_handPaths.data();
+        checkXRResult(xrCreateAction(m_gameplayActionSet, &cancelActionInfo, &m_cancelAction), "Failed to create cancel action!");
+
+        XrActionCreateInfo jumpActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
+        jumpActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+        strcpy_s(jumpActionInfo.actionName, "jump");
+        strcpy_s(jumpActionInfo.localizedActionName, "Jump");
+        jumpActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
+        jumpActionInfo.subactionPaths = m_handPaths.data();
+        checkXRResult(xrCreateAction(m_gameplayActionSet, &jumpActionInfo, &m_jumpAction), "Failed to create jump action!");
+
+        XrActionCreateInfo mapActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
+        mapActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+        strcpy_s(mapActionInfo.actionName, "map");
+        strcpy_s(mapActionInfo.localizedActionName, "Map");
+        mapActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
+        mapActionInfo.subactionPaths = m_handPaths.data();
+        checkXRResult(xrCreateAction(m_gameplayActionSet, &mapActionInfo, &m_mapAction), "Failed to create map action!");
+
+        XrActionCreateInfo menuActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
+        menuActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+        strcpy_s(menuActionInfo.actionName, "menu");
+        strcpy_s(menuActionInfo.localizedActionName, "Menu");
+        menuActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
+        menuActionInfo.subactionPaths = m_handPaths.data();
+        checkXRResult(xrCreateAction(m_gameplayActionSet, &menuActionInfo, &m_menuAction), "Failed to create menu action!");
+
         XrActionCreateInfo moveActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
         moveActionInfo.actionType = XR_ACTION_TYPE_VECTOR2F_INPUT;
         strcpy_s(moveActionInfo.actionName, "move");
@@ -238,15 +270,21 @@ void OpenXR::CreateActions() {
     }
 
     {
-        std::array<XrActionSuggestedBinding, 8> suggestedBindings = {
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
+        std::array<XrActionSuggestedBinding, 12> suggestedBindings = {
             XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
+            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/value") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/value") },
-            XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/squeeze/value") },
+
+            XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
+            XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
+            XrActionSuggestedBinding{ .action = m_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_menuAction, .binding = GetXRPath("/user/hand/left/input/y/click") },
+
             XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
-            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
-            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") }
+            XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
+            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") },
+            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") }
         };
         XrInteractionProfileSuggestedBinding suggestedBindingsInfo = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
         suggestedBindingsInfo.interactionProfile = GetXRPath("/interaction_profiles/oculus/touch_controller");
@@ -256,11 +294,17 @@ void OpenXR::CreateActions() {
     }
 
     {
-        std::array<XrActionSuggestedBinding, 8> suggestedBindings = {
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
+        std::array<XrActionSuggestedBinding, 12> suggestedBindings = {
             XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
+            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/click") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/click") },
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/squeeze/click") },
+
+            XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
+            XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
+            XrActionSuggestedBinding{ .action = m_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_menuAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+
             XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
             XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
             XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
@@ -284,7 +328,7 @@ void OpenXR::CreateActions() {
         createInfo.action = m_poseAction;
         createInfo.subactionPath = m_handPaths[side];
         createInfo.poseInActionSpace = s_xrIdentityPose;
-        checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_input.hands[side].poseSpace), "Failed to create action space for hand pose!");
+        checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_input.controllers[side].poseSpace), "Failed to create action space for hand pose!");
     }
 }
 
@@ -299,26 +343,26 @@ void OpenXR::UpdateActions(XrTime predictedFrameTime) {
         XrActionStateGetInfo getGrabInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getGrabInfo.action = m_grabAction;
         getGrabInfo.subactionPath = m_handPaths[side];
-        m_input.hands[side].grab = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getGrabInfo, &m_input.hands[side].grab), "Failed to get grab action value!");
+        m_input.controllers[side].grab = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getGrabInfo, &m_input.controllers[side].grab), "Failed to get grab action value!");
 
         XrActionStateGetInfo getSelectInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getSelectInfo.action = m_selectAction;
         getSelectInfo.subactionPath = m_handPaths[side];
-        m_input.hands[side].select = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getSelectInfo, &m_input.hands[side].select), "Failed to get select action value!");
+        m_input.controllers[side].select = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getSelectInfo, &m_input.controllers[side].select), "Failed to get select action value!");
 
         XrActionStateGetInfo getPoseInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getPoseInfo.action = m_poseAction;
         getPoseInfo.subactionPath = m_handPaths[side];
-        m_input.hands[side].pose = { XR_TYPE_ACTION_STATE_POSE };
-        checkXRResult(xrGetActionStatePose(m_session, &getPoseInfo, &m_input.hands[side].pose), "Failed to get pose action value!");
+        m_input.controllers[side].pose = { XR_TYPE_ACTION_STATE_POSE };
+        checkXRResult(xrGetActionStatePose(m_session, &getPoseInfo, &m_input.controllers[side].pose), "Failed to get pose action value!");
 
-        if (m_input.hands[side].pose.isActive) {
+        if (m_input.controllers[side].pose.isActive) {
             XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
-            checkXRResult(xrLocateSpace(m_input.hands[side].poseSpace, m_stageSpace, m_frameTimes[side], &spaceLocation), "Failed to get location from controllers!");
+            checkXRResult(xrLocateSpace(m_input.controllers[side].poseSpace, m_stageSpace, m_frameTimes[side], &spaceLocation), "Failed to get location from controllers!");
             if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0) {
-                m_input.hands[side].poseLocation = spaceLocation;
+                m_input.controllers[side].poseLocation = spaceLocation;
             }
         }
     }
@@ -326,8 +370,32 @@ void OpenXR::UpdateActions(XrTime predictedFrameTime) {
     XrActionStateGetInfo getMoveInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
     getMoveInfo.action = m_moveAction;
     getMoveInfo.subactionPath = XR_NULL_PATH;
-    m_input.shared.move = { XR_TYPE_ACTION_STATE_VECTOR2F };
-    checkXRResult(xrGetActionStateVector2f(m_session, &getMoveInfo, &m_input.shared.move), "Failed to get move action value!");
+    m_input.move = { XR_TYPE_ACTION_STATE_VECTOR2F };
+    checkXRResult(xrGetActionStateVector2f(m_session, &getMoveInfo, &m_input.move), "Failed to get move action value!");
+
+    XrActionStateGetInfo getCancelInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+    getCancelInfo.action = m_cancelAction;
+    getCancelInfo.subactionPath = XR_NULL_PATH;
+    m_input.cancel = { XR_TYPE_ACTION_STATE_BOOLEAN };
+    checkXRResult(xrGetActionStateBoolean(m_session, &getCancelInfo, &m_input.cancel), "Failed to get cancel action value!");
+
+    XrActionStateGetInfo getJumpInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+    getJumpInfo.action = m_jumpAction;
+    getJumpInfo.subactionPath = XR_NULL_PATH;
+    m_input.jump = { XR_TYPE_ACTION_STATE_BOOLEAN };
+    checkXRResult(xrGetActionStateBoolean(m_session, &getJumpInfo, &m_input.jump), "Failed to get jump action value!");
+
+    XrActionStateGetInfo getMapInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+    getMapInfo.action = m_mapAction;
+    getMapInfo.subactionPath = XR_NULL_PATH;
+    m_input.map = { XR_TYPE_ACTION_STATE_BOOLEAN };
+    checkXRResult(xrGetActionStateBoolean(m_session, &getMapInfo, &m_input.map), "Failed to get map action value!");
+
+    XrActionStateGetInfo getMenuInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+    getMenuInfo.action = m_menuAction;
+    getMenuInfo.subactionPath = XR_NULL_PATH;
+    m_input.menu = { XR_TYPE_ACTION_STATE_BOOLEAN };
+    checkXRResult(xrGetActionStateBoolean(m_session, &getMenuInfo, &m_input.menu), "Failed to get menu action value!");
 }
 
 bool firstInit = true;

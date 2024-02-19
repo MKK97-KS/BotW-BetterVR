@@ -41,7 +41,7 @@ void CemuHooks::hook_UpdateActorList(PPCInterpreter_t* hCPU) {
 
     // clear actor list when reiterating actor list again
     if (hCPU->gpr[5] == 0) {
-        Log::print("Clearing actor list");
+        //Log::print("Clearing actor list");
         s_actors.clear();
         s_actorPtrs.clear();
     }
@@ -65,7 +65,7 @@ void CemuHooks::hook_UpdateActorList(PPCInterpreter_t* hCPU) {
         s_actorPtrs.emplace_back(hCPU->gpr[6]);
     }
 
-    Log::print("Updating actor list [{}/{}] {:08x} - {}", hCPU->gpr[5], hCPU->gpr[7], hCPU->gpr[6], actorName);
+    //Log::print("Updating actor list [{}/{}] {:08x} - {}", hCPU->gpr[5], hCPU->gpr[7], hCPU->gpr[6], actorName);
 }
 
 // ksys::phys::RigidBodyFromShape::create to create a RigidBody from a shape
@@ -117,12 +117,16 @@ void CemuHooks::hook_CreateNewActor(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
     // test if controller is connected
-    if (VRManager::instance().XR->m_input.hands[0].select.currentState == XR_TRUE || VRManager::instance().XR->m_input.hands[1].select.currentState == XR_TRUE) {
+    if (VRManager::instance().XR->m_input.controllers[0].select.currentState == XR_TRUE || VRManager::instance().XR->m_input.controllers[0].select.changedSinceLastSync == XR_TRUE) {
+        Log::print("Trying to spawn new thing!");
+        hCPU->gpr[3] = 1;
+    }
+    else if (VRManager::instance().XR->m_input.controllers[1].select.currentState == XR_TRUE || VRManager::instance().XR->m_input.controllers[1].select.changedSinceLastSync == XR_TRUE) {
         Log::print("Trying to spawn new thing!");
         hCPU->gpr[3] = 1;
     }
     else {
-        hCPU->gpr[3] = swapEndianness(0);
+        hCPU->gpr[3] = 0;
     }
 }
 

@@ -23,16 +23,27 @@ public:
     } m_capabilities = {};
 
     struct InputState {
-        XrActionStateBoolean grab;
-        XrActionStateBoolean select;
-        XrActionStateVector2f move;
-        XrActionStatePose pose;
-        XrSpace poseSpace;
-        XrSpaceLocation poseLocation;
+        // todo: separate in-game actions from menu actions
+
     };
-    union Input {
-        InputState hands[2];
-        InputState shared;
+    struct Input {
+        struct Controller {
+            XrActionStateBoolean select;
+            XrActionStateBoolean grab;
+
+            XrActionStatePose pose;
+            XrSpace poseSpace;
+            XrSpaceLocation poseLocation;
+        };
+
+        XrActionStateVector2f move;
+        XrActionStateBoolean jump;
+        XrActionStateBoolean cancel;
+
+        XrActionStateBoolean map;
+        XrActionStateBoolean menu;
+
+        std::array<Controller, 2> controllers;
     } m_input = {};
 
     void CreateSession(const XrGraphicsBindingD3D12KHR& d3d12Binding);
@@ -62,8 +73,14 @@ private:
 
     std::array<XrPath, 2> m_handPaths = { XR_NULL_PATH, XR_NULL_PATH };
     XrActionSet m_gameplayActionSet = XR_NULL_HANDLE;
-    XrAction m_selectAction = XR_NULL_HANDLE;
     XrAction m_grabAction = XR_NULL_HANDLE;
+    XrAction m_selectAction = XR_NULL_HANDLE;
+
+    XrAction m_jumpAction = XR_NULL_HANDLE;
+    XrAction m_cancelAction = XR_NULL_HANDLE;
+    XrAction m_mapAction = XR_NULL_HANDLE;
+    XrAction m_menuAction = XR_NULL_HANDLE;
+
     XrAction m_moveAction = XR_NULL_HANDLE;
     XrAction m_poseAction = XR_NULL_HANDLE;
 
