@@ -12,7 +12,6 @@ struct EntityValue {
 
 struct Entity {
     std::string name;
-    std::string lowerName;
     float priority;
     std::vector<EntityValue> values;
 };

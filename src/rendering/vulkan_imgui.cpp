@@ -275,7 +275,7 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
     // sort m_entities by priority
     std::multimap<float, std::reference_wrapper<Entity>> sortedEntities;
     for (auto& entity : m_entities | std::views::values) {
-        if (m_filter.empty() || entity.lowerName.find(m_filter) != std::string::npos) {
+        if (m_filter.empty() || entity.name.find(m_filter) != std::string::npos) {
             bool isAnyValueFrozen = std::ranges::any_of(entity.values, [](auto& value) { return value.frozen; });
             // give priority to frozen entities
             sortedEntities.emplace(isAnyValueFrozen ? 0.0f - entity.priority : entity.priority, entity);
@@ -558,7 +558,7 @@ void RND_Vulkan::ImGuiOverlay::UpdateControls() {
 // Memory Viewer/Editor
 
 void RND_Vulkan::ImGuiOverlay::AddOrUpdateEntity(uint32_t actorId, const std::string& entityName, const std::string& valueName, uint32_t address, ValueVariant&& value) {
-    const auto& [entityIt, _] = m_entities.try_emplace(actorId, Entity{ entityName, toLower(entityName), 0.0f, {} });
+    const auto& [entityIt, _] = m_entities.try_emplace(actorId, Entity{ entityName, 0.0f, {} });
 
     const auto& valueIt = std::ranges::find_if(entityIt->second.values, [&](EntityValue& val) {
         return val.value_name == valueName;

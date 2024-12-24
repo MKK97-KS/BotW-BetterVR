@@ -28,6 +28,7 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_CreateNewActor", &hook_CreateNewActor);
         osLib_registerHLEFunction("coreinit", "hook_InjectXRInput", &hook_InjectXRInput);
         osLib_registerHLEFunction("coreinit", "hook_modifyHandModelAccessSearch", &hook_modifyHandModelAccessSearch);
+        osLib_registerHLEFunction("coreinit", "hook_changeWeaponMtx", &hook_changeWeaponMtx);
     };
     ~CemuHooks() {
         FreeLibrary(m_cemuHandle);
@@ -56,6 +57,7 @@ private:
     static void hook_CreateNewActor(PPCInterpreter_t* hCPU);
     static void hook_InjectXRInput(PPCInterpreter_t* hCPU);
     static void hook_modifyHandModelAccessSearch(PPCInterpreter_t* hCPU);
+    static void hook_changeWeaponMtx(PPCInterpreter_t* hCPU);
 
     static void updateFrames();
 

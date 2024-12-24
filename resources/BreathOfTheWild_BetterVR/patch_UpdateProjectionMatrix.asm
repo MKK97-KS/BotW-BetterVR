@@ -53,37 +53,6 @@ blr
 0x0386D024 = bla updateCameraAspectRatio
 
 
-
-; -----------------------------------------------------------
-
-loadLineCharacter:
-.int 10
-.align 4
-; r0 should be modifiable
-; r3 = format string
-; r4 = int arg1
-; r5 = int arg2
-; f1 = float arg1
-; f2 = float arg2
-printToLog:
-mflr r0
-stwu r1, -0x10(r1)
-stw r0, 0x14(r1)
-stw r5, 0x8(r1)
-stw r6, 0xC(r1)
-
-lis r6, loadLineCharacter@ha
-lwz r6, loadLineCharacter@l(r6)
-crxor 4*cr1+eq, 4*cr1+eq, 4*cr1+eq
-bl import.coreinit.OSReport
-
-lwz r6, 0xC(r1)
-lwz r5, 0x8(r1)
-lwz r0, 0x14(r1)
-mtlr r0
-addi r1, r1, 0x10
-blr
-
 loadLineFormat:
 .string "sead::PerspectiveProjection::setFovY(this = 0x%08x fovRadians = %f offsetX = %f) LR = 0x%08x %c"
 printSetFovY:

@@ -28,6 +28,17 @@ struct std::formatter<DXGI_FORMAT> : std::formatter<string> {
     }
 };
 
+template <>
+struct std::formatter<BEMatrix34> : std::formatter<string> {
+    auto format(const BEMatrix34 mtx, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "[x_x={}, y_x={}, z_x={}, pos_x={}] [x_y={}, x_y={}, z_y={}, pos_y={}] [x_z={}, y_z={}, z_z={}, pos_z={}]",
+            mtx.x_x.getLE(), mtx.y_x.getLE(), mtx.z_x.getLE(), mtx.pos_x.getLE(),
+            mtx.x_y.getLE(), mtx.y_y.getLE(), mtx.z_y.getLE(), mtx.pos_y.getLE(),
+            mtx.x_z.getLE(), mtx.y_z.getLE(), mtx.z_z.getLE(), mtx.pos_z.getLE()
+        );
+    }
+};
+
 
 template <>
 struct std::formatter<D3D_FEATURE_LEVEL> : std::formatter<string> {
