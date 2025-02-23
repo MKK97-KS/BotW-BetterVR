@@ -80,6 +80,10 @@ static_assert(sizeof(VPADStatus) == 0xAC);
 void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
+    auto mapXRButtonToVpad = [](XrActionStateBoolean& state, VPADButtons mapping) -> uint32_t {
+        return state.currentState ? mapping : 0;
+    };
+
     // read existing vpad as to not overwrite it
     uint32_t vpadStatusOffset = hCPU->gpr[4];
     VPADStatus vpadStatus = {};
@@ -88,64 +92,72 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         readMemory(vpadStatusOffset, &vpadStatus);
     }
 
+    OpenXR::InputState inputs = VRManager::instance().XR->m_input.load();
 
-    static uint32_t oldCombinedHold = 0;
     // buttons
+    static uint32_t oldCombinedHold = 0;
     uint32_t newXRBtnHold = 0;
 
-    auto mapXRButtonToVpad = [](XrActionStateBoolean& xrState, VPADButtons mapping) -> uint32_t {
-        return xrState.currentState ? mapping : 0;
-    };
+    if (inputs.inGame.in_game) {
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.map, VPAD_BUTTON_MINUS);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.inventory, VPAD_BUTTON_PLUS);
 
-    // todo: fix issue if user has set the jump button to A instead of Y in the game's settings
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.jump, VPAD_BUTTON_Y);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.cancel, VPAD_BUTTON_X);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.interact, VPAD_BUTTON_A);
 
-    auto& left_select = VRManager::instance().XR->m_input.controllers[0].select;
-    auto& right_select = VRManager::instance().XR->m_input.controllers[1].select;
-    newXRBtnHold |= (mapXRButtonToVpad(left_select, VPAD_BUTTON_A) | mapXRButtonToVpad(right_select, VPAD_BUTTON_A));
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.grab[0], VPAD_BUTTON_A);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.grab[1], VPAD_BUTTON_A);
+    }
+    else {
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.map, VPAD_BUTTON_MINUS);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.inventory, VPAD_BUTTON_PLUS);
 
-    auto& left_grab = VRManager::instance().XR->m_input.controllers[0].grab;
-    auto& right_grab = VRManager::instance().XR->m_input.controllers[1].grab;
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.select, VPAD_BUTTON_A);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.back, VPAD_BUTTON_B);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.sort, VPAD_BUTTON_Y);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.hold, VPAD_BUTTON_X);
+
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.leftTrigger, VPAD_BUTTON_L);
+        newXRBtnHold |= mapXRButtonToVpad(inputs.inMenu.rightTrigger, VPAD_BUTTON_R);
+    }
+
     // todo: see if select or grab is better
 
-    newXRBtnHold |= mapXRButtonToVpad(VRManager::instance().XR->m_input.cancel, VPAD_BUTTON_B);
-    newXRBtnHold |= mapXRButtonToVpad(VRManager::instance().XR->m_input.jump, VPAD_BUTTON_Y);
-
-    newXRBtnHold |= mapXRButtonToVpad(VRManager::instance().XR->m_input.map, VPAD_BUTTON_MINUS);
-    newXRBtnHold |= mapXRButtonToVpad(VRManager::instance().XR->m_input.menu, VPAD_BUTTON_PLUS);
-
-    auto& jumpState = VRManager::instance().XR->m_input.jump;
-    // todo: jump normally is done by pressing A
-
-    // move stick
-    uint32_t newXRStickHold = 0;
+    // sticks
     static uint32_t oldXRStickHold = 0;
-    constexpr float kAxisThreshold = 0.5f;
-    constexpr float kHoldAxisThreshold = 0.1f;
+    uint32_t newXRStickHold = 0;
 
-    auto& moveState = VRManager::instance().XR->m_input.move;
-    vpadStatus.leftStick = {moveState.currentState.x + vpadStatus.leftStick.x.getLE(), moveState.currentState.y + vpadStatus.leftStick.y.getLE()};
+    constexpr float AXIS_THRESHOLD = 0.5f;
+    constexpr float HOLD_THRESHOLD = 0.1f;
 
-    if (moveState.currentState.x <= -kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_LEFT) && moveState.currentState.x <= -kHoldAxisThreshold))
+    // movement/navigation stick
+    XrActionStateVector2f& leftStickSource = inputs.inGame.in_game ? inputs.inGame.move : inputs.inMenu.navigate;
+    vpadStatus.leftStick = {leftStickSource.currentState.x + vpadStatus.leftStick.x.getLE(), leftStickSource.currentState.y + vpadStatus.leftStick.y.getLE()};
+
+    if (leftStickSource.currentState.x <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_LEFT) && leftStickSource.currentState.x <= -HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_L_EMULATION_LEFT;
-    else if (moveState.currentState.x >= kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_RIGHT) && moveState.currentState.x >= kHoldAxisThreshold))
+    else if (leftStickSource.currentState.x >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_RIGHT) && leftStickSource.currentState.x >= HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_L_EMULATION_RIGHT;
 
-    if (moveState.currentState.y <= -kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_DOWN) && moveState.currentState.y <= -kHoldAxisThreshold))
+    if (leftStickSource.currentState.y <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_DOWN) && leftStickSource.currentState.y <= -HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_L_EMULATION_DOWN;
-    else if (moveState.currentState.y >= kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_UP) && moveState.currentState.y >= kHoldAxisThreshold))
+    else if (leftStickSource.currentState.y >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_L_EMULATION_UP) && leftStickSource.currentState.y >= HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_L_EMULATION_UP;
 
-    // camera stick
-    auto& cameraState = VRManager::instance().XR->m_input.camera;
-    vpadStatus.rightStick = {cameraState.currentState.x + vpadStatus.rightStick.x.getLE(), cameraState.currentState.y + vpadStatus.rightStick.y.getLE()};
-    if (cameraState.currentState.x <= -kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_LEFT) && cameraState.currentState.x <= -kHoldAxisThreshold))
+
+    // camera/fast-scroll stick
+    XrActionStateVector2f& rightStickSource = inputs.inGame.in_game ? inputs.inGame.camera : inputs.inMenu.scroll;
+    vpadStatus.rightStick = {rightStickSource.currentState.x + vpadStatus.rightStick.x.getLE(), rightStickSource.currentState.y + vpadStatus.rightStick.y.getLE()};
+
+    if (rightStickSource.currentState.x <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_LEFT) && rightStickSource.currentState.x <= -HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_R_EMULATION_LEFT;
-    else if (cameraState.currentState.x >= kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_RIGHT) && cameraState.currentState.x >= kHoldAxisThreshold))
+    else if (rightStickSource.currentState.x >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_RIGHT) && rightStickSource.currentState.x >= HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_R_EMULATION_RIGHT;
 
-    if (cameraState.currentState.y <= -kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_DOWN) && cameraState.currentState.y <= -kHoldAxisThreshold))
+    if (rightStickSource.currentState.y <= -AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_DOWN) && rightStickSource.currentState.y <= -HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_R_EMULATION_DOWN;
-    else if (cameraState.currentState.y >= kAxisThreshold || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_UP) && cameraState.currentState.y >= kHoldAxisThreshold))
+    else if (rightStickSource.currentState.y >= AXIS_THRESHOLD || (HAS_FLAG(oldXRStickHold, VPAD_STICK_R_EMULATION_UP) && rightStickSource.currentState.y >= HOLD_THRESHOLD))
         newXRStickHold |= VPAD_STICK_R_EMULATION_UP;
 
     oldXRStickHold = newXRStickHold;

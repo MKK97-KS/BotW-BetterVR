@@ -22,13 +22,13 @@ $linkOpacity = 1.0
 [Preset]
 name = Third-Person Camera (Default)
 category = Camera Mode
-default = 1
 $cameraMode = 0
 $linkOpacity = 1.0
 
 [Preset]
 name = First-Person Camera
 category = Camera Mode
+default = 1
 $cameraMode = 1
 $linkOpacity = 0.0
 $cameraDistance = 0.0

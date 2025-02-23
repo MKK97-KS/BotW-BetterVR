@@ -436,25 +436,36 @@ extern OpenXR::EyeSide s_currentEye;
 
 void vrhook_changeWeaponMtx(OpenXR::EyeSide side, BEMatrix34& toBeAdjustedMtx, BEMatrix34& defaultMtx) {
     // convert VR controller info to glm
-    XrPosef handPose = VRManager::instance().XR->m_input.controllers[side].poseLocation.pose;
+    OpenXR::InputState inputs = VRManager::instance().XR->m_input.load();
+
+    glm::fvec3 controllerPos = glm::fvec3(0.0f);
+    glm::fquat controllerQuat = glm::identity<glm::fquat>();
+
+    if (inputs.inGame.in_game && inputs.inGame.pose[side].isActive) {
+        auto& handPose = side == OpenXR::EyeSide::LEFT ? inputs.inGame.poseLocation[side] : inputs.inGame.poseLocation[side];
+
+        if (handPose.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) {
+            controllerPos = glm::fvec3(
+                handPose.pose.position.x,
+                handPose.pose.position.y,
+                handPose.pose.position.z
+            );
+        }
+        if (handPose.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) {
+            controllerQuat = glm::fquat(
+                handPose.pose.orientation.w,
+                handPose.pose.orientation.x,
+                handPose.pose.orientation.y,
+                handPose.pose.orientation.z
+            );
+        }
+    }
 
     // handPose.orientation.w = rotateHorizontalCounter.w;
     // handPose.orientation.x = rotateHorizontalCounter.x;
     // handPose.orientation.y = rotateHorizontalCounter.y;
     // handPose.orientation.z = rotateHorizontalCounter.z;
     // rotateHorizontalCounter = glm::rotate(rotateHorizontalCounter, glm::radians(360.0f/30.0f/1.0f), glm::fvec3(1.0f, 0.0f, 0.0f));
-
-    glm::fvec3 controllerPos(
-        handPose.position.x,
-        handPose.position.y,
-        handPose.position.z
-    );
-    glm::fquat controllerQuat(
-        handPose.orientation.w,
-        handPose.orientation.x,
-        handPose.orientation.y,
-        handPose.orientation.z
-    );
 
     // Next, calculate the rotation
     glm::fquat rotatedControllerQuat = glm::normalize(g_lookAtQuat * controllerQuat);
@@ -591,12 +602,18 @@ void CemuHooks::hook_CreateNewActor(PPCInterpreter_t* hCPU) {
         return;
     }
 
+    OpenXR::InputState inputs = VRManager::instance().XR->m_input.load();
+    if (!inputs.inGame.in_game) {
+        hCPU->gpr[3] = 0;
+        return;
+    }
+
     // test if controller is connected
-    if (VRManager::instance().XR->m_input.controllers[0].select.currentState == XR_TRUE && VRManager::instance().XR->m_input.controllers[0].select.changedSinceLastSync == XR_TRUE) {
+    if (inputs.inGame.grab[OpenXR::EyeSide::LEFT].currentState == XR_TRUE && inputs.inGame.grab[OpenXR::EyeSide::LEFT].changedSinceLastSync == XR_TRUE) {
         Log::print("Trying to spawn new thing!");
         hCPU->gpr[3] = 1;
     }
-    else if (VRManager::instance().XR->m_input.controllers[1].select.currentState == XR_TRUE && VRManager::instance().XR->m_input.controllers[1].select.changedSinceLastSync == XR_TRUE) {
+    else if (inputs.inGame.grab[OpenXR::EyeSide::RIGHT].currentState == XR_TRUE && inputs.inGame.grab[OpenXR::EyeSide::RIGHT].changedSinceLastSync == XR_TRUE) {
         Log::print("Trying to spawn new thing!");
         hCPU->gpr[3] = 1;
     }

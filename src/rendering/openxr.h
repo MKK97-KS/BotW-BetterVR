@@ -22,37 +22,74 @@ public:
         bool supportsMutatableFOV;
     } m_capabilities = {};
 
-    struct InputState {
-        // todo: separate in-game actions from menu actions
+    // struct Input {
+    //     struct Controller {
+    //         XrActionStateBoolean select;
+    //         XrActionStateBoolean grab;
+    //
+    //         XrActionStatePose pose;
+    //         XrSpace poseSpace;
+    //         XrSpaceLocation poseLocation;
+    //     };
+    //
+    //     XrActionStateVector2f move;
+    //     XrActionStateVector2f camera;
+    //     XrActionStateBoolean jump;
+    //     XrActionStateBoolean cancel;
+    //
+    //     XrActionStateBoolean map;
+    //     XrActionStateBoolean menu;
+    //
+    //     std::array<Controller, 2> controllers;
+    // } m_input = {};
 
-    };
-    struct Input {
-        struct Controller {
+    union InputState {
+        struct InGame {
+            bool in_game = true;
+
+            // shared
+            XrActionStateBoolean map;
+            XrActionStateBoolean inventory;
+
+            // unique
+            XrActionStateVector2f camera;
+            XrActionStateVector2f move;
+
+            XrActionStateBoolean jump;
+            XrActionStateBoolean cancel;
+            XrActionStateBoolean interact;
+            std::array<XrActionStateBoolean, 2> grab;
+
+            std::array<XrActionStatePose, 2> pose;
+            std::array<XrSpaceLocation, 2> poseLocation;
+        } inGame;
+        struct InMenu {
+            bool in_game = false;
+
+            // shared
+            XrActionStateBoolean map;
+            XrActionStateBoolean inventory;
+
+            // unique
+            XrActionStateVector2f scroll;
+            XrActionStateVector2f navigate;
+
             XrActionStateBoolean select;
-            XrActionStateBoolean grab;
-
-            XrActionStatePose pose;
-            XrSpace poseSpace;
-            XrSpaceLocation poseLocation;
-        };
-
-        XrActionStateVector2f move;
-        XrActionStateVector2f camera;
-        XrActionStateBoolean jump;
-        XrActionStateBoolean cancel;
-
-        XrActionStateBoolean map;
-        XrActionStateBoolean menu;
-
-        std::array<Controller, 2> controllers;
-    } m_input = {};
+            XrActionStateBoolean back;
+            XrActionStateBoolean sort;
+            XrActionStateBoolean hold;
+            XrActionStateBoolean leftTrigger;
+            XrActionStateBoolean rightTrigger;
+        } inMenu;
+    };
+    std::atomic<InputState> m_input = {};
 
     void CreateSession(const XrGraphicsBindingD3D12KHR& d3d12Binding);
     void CreateActions();
     std::array<XrViewConfigurationView, 2> GetViewConfigurations();
     void UpdateTime(EyeSide side, XrTime predictedDisplayTime);
     std::optional<XrSpaceLocation> UpdateSpaces(XrTime predictedDisplayTime);
-    void UpdateActions(XrTime predictedFrameTime);
+    void UpdateActions(XrTime predictedFrameTime, bool inMenu);
     void ProcessEvents();
 
     XrSession GetSession() { return m_session; }
@@ -71,20 +108,43 @@ private:
     XrSession m_session = XR_NULL_HANDLE;
     XrSpace m_stageSpace = XR_NULL_HANDLE;
     XrSpace m_headSpace = XR_NULL_HANDLE;
-
+    std::array<XrSpace, 2> m_handSpaces = { XR_NULL_HANDLE, XR_NULL_HANDLE };
     std::array<XrPath, 2> m_handPaths = { XR_NULL_PATH, XR_NULL_PATH };
+
     XrActionSet m_gameplayActionSet = XR_NULL_HANDLE;
+    // gameplay actions
+    XrAction m_poseAction = XR_NULL_HANDLE;
+    XrAction m_moveAction = XR_NULL_HANDLE;
+    XrAction m_cameraAction = XR_NULL_HANDLE;
     XrAction m_grabAction = XR_NULL_HANDLE;
-    XrAction m_selectAction = XR_NULL_HANDLE;
 
     XrAction m_jumpAction = XR_NULL_HANDLE;
     XrAction m_cancelAction = XR_NULL_HANDLE;
-    XrAction m_mapAction = XR_NULL_HANDLE;
-    XrAction m_menuAction = XR_NULL_HANDLE;
+    XrAction m_interactAction = XR_NULL_HANDLE;
 
-    XrAction m_moveAction = XR_NULL_HANDLE;
-    XrAction m_cameraAction = XR_NULL_HANDLE;
-    XrAction m_poseAction = XR_NULL_HANDLE;
+    XrAction m_inGame_mapAction = XR_NULL_HANDLE;
+    XrAction m_inGame_inventoryAction = XR_NULL_HANDLE;
+    // XrAction m_interactAction = XR_NULL_HANDLE;
+    // XrAction m_jumpAction = XR_NULL_HANDLE;
+    // XrAction m_cancelAction = XR_NULL_HANDLE;
+    // XrAction m_mapAction = XR_NULL_HANDLE;
+    // XrAction m_menuAction = XR_NULL_HANDLE;
+    // XrAction m_moveAction = XR_NULL_HANDLE;
+    // XrAction m_cameraAction = XR_NULL_HANDLE;
+
+    // menu actions
+    XrActionSet m_menuActionSet = XR_NULL_HANDLE;
+    XrAction m_scrollAction = XR_NULL_HANDLE;
+    XrAction m_navigateAction = XR_NULL_HANDLE;
+    XrAction m_selectAction = XR_NULL_HANDLE; // A button
+    XrAction m_backAction = XR_NULL_HANDLE; // B button
+    XrAction m_sortAction = XR_NULL_HANDLE; // Y button
+    XrAction m_holdAction = XR_NULL_HANDLE; // X button
+    XrAction m_leftTriggerAction = XR_NULL_HANDLE; // left bumper
+    XrAction m_rightTriggerAction = XR_NULL_HANDLE; // right bumper
+
+    XrAction m_inMenu_mapAction = XR_NULL_HANDLE;
+    XrAction m_inMenu_inventoryAction = XR_NULL_HANDLE;
 
     std::unique_ptr<RND_Renderer> m_renderer;
 

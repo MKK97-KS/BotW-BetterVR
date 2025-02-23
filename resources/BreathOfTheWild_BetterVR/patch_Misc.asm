@@ -4,7 +4,15 @@ moduleMatches = 0x6267BFD0
 .origin = codecave
 
 
-# Always have the weapons be physically active
+; Disable jump button setting from in-game options
+; todo: test whether this is actually working
+
+0x024AA7C4 = ksys_gdt_getFlag_JumpButtonChange:
+0x024AA7C4 = li r3, 0
+0x024AA7C8 = blr
+
+
+; Always have the weapons be physically active
 0x024AA7D0 = nop
 0x024AA7E0 = nop
 0x024AA7E8 = nop
@@ -13,7 +21,7 @@ moduleMatches = 0x6267BFD0
 0x024AA850 = nop
 
 
-# disables all collisions (from camera presumably)
+; disables all collisions (from camera presumably)
 0x030E47CC = li r3, 0
 0x030E47E4 = li r3, 0
 

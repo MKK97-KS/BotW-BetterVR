@@ -182,96 +182,91 @@ void OpenXR::CreateSession(const XrGraphicsBindingD3D12KHR& d3d12Binding) {
 void OpenXR::CreateActions() {
     Log::print("Creating the OpenXR actions...");
 
-    XrActionSetCreateInfo actionSetInfo = { XR_TYPE_ACTION_SET_CREATE_INFO };
-    strcpy_s(actionSetInfo.actionSetName, "gameplay");
-    strcpy_s(actionSetInfo.localizedActionSetName, "Gameplay");
-    actionSetInfo.priority = 0;
-    checkXRResult(xrCreateActionSet(m_instance, &actionSetInfo, &m_gameplayActionSet), "Failed to create controller bindings!");
-
     m_handPaths = { GetXRPath("/user/hand/left"), GetXRPath("/user/hand/right") };
 
+    auto createAction = [this](const XrActionSet& actionSet, const char* id, const char* name, XrActionType actionType, XrAction& action) {
+        XrActionCreateInfo actionInfo = { XR_TYPE_ACTION_CREATE_INFO };
+        actionInfo.actionType = actionType;
+        strcpy_s(actionInfo.actionName, id);
+        strcpy_s(actionInfo.localizedActionName, name);
+        actionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
+        actionInfo.subactionPaths = m_handPaths.data();
+        checkXRResult(xrCreateAction(actionSet, &actionInfo, &action), std::format("Failed to create action for {}", id).c_str());
+    };
+
     {
-        XrActionCreateInfo grabActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        grabActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
-        strcpy_s(grabActionInfo.actionName, "grab");
-        strcpy_s(grabActionInfo.localizedActionName, "Grab");
-        grabActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        grabActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &grabActionInfo, &m_grabAction), "Failed to create grab action!");
+        XrActionSetCreateInfo actionSetInfo = { XR_TYPE_ACTION_SET_CREATE_INFO };
+        strcpy_s(actionSetInfo.actionSetName, "gameplay_fps");
+        strcpy_s(actionSetInfo.localizedActionSetName, "Gameplay");
+        actionSetInfo.priority = 0;
+        checkXRResult(xrCreateActionSet(m_instance, &actionSetInfo, &m_gameplayActionSet), "Failed to create controller actions for gameplay_fps!");
 
-        XrActionCreateInfo selectActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        selectActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
-        strcpy_s(selectActionInfo.actionName, "select");
-        strcpy_s(selectActionInfo.localizedActionName, "Select");
-        selectActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        selectActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &selectActionInfo, &m_selectAction), "Failed to create select action!");
+        // createAction(m_gameplayActionSet, "grab", "Grab", XR_ACTION_TYPE_BOOLEAN_INPUT, m_grabAction);
+        // createAction(m_gameplayActionSet, "interact", "Interact", XR_ACTION_TYPE_BOOLEAN_INPUT, m_interactAction);
+        // createAction(m_gameplayActionSet, "cancel", "Cancel", XR_ACTION_TYPE_BOOLEAN_INPUT, m_cancelAction);
+        // createAction(m_gameplayActionSet, "jump", "Jump", XR_ACTION_TYPE_BOOLEAN_INPUT, m_jumpAction);
+        // createAction(m_gameplayActionSet, "map", "Map", XR_ACTION_TYPE_BOOLEAN_INPUT, m_mapAction);
+        // createAction(m_gameplayActionSet, "menu", "Menu", XR_ACTION_TYPE_BOOLEAN_INPUT, m_menuAction);
+        // createAction(m_gameplayActionSet, "move", "Move", XR_ACTION_TYPE_VECTOR2F_INPUT, m_moveAction);
+        // createAction(m_gameplayActionSet, "camera", "Camera", XR_ACTION_TYPE_VECTOR2F_INPUT, m_cameraAction);
+        // createAction(m_gameplayActionSet, "pose", "Pose", XR_ACTION_TYPE_POSE_INPUT, m_poseAction);
 
-        XrActionCreateInfo cancelActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        cancelActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
-        strcpy_s(cancelActionInfo.actionName, "cancel");
-        strcpy_s(cancelActionInfo.localizedActionName, "Cancel");
-        cancelActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        cancelActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &cancelActionInfo, &m_cancelAction), "Failed to create cancel action!");
+        createAction(m_gameplayActionSet, "pose", "Controller Pose", XR_ACTION_TYPE_POSE_INPUT, m_poseAction);
+        createAction(m_gameplayActionSet, "move", "Move (Left Thumbstick)", XR_ACTION_TYPE_VECTOR2F_INPUT, m_moveAction);
+        createAction(m_gameplayActionSet, "camera", "Camera (Right Thumbstick)", XR_ACTION_TYPE_VECTOR2F_INPUT, m_cameraAction);
 
-        XrActionCreateInfo jumpActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        jumpActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
-        strcpy_s(jumpActionInfo.actionName, "jump");
-        strcpy_s(jumpActionInfo.localizedActionName, "Jump");
-        jumpActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        jumpActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &jumpActionInfo, &m_jumpAction), "Failed to create jump action!");
+        createAction(m_gameplayActionSet, "grab", "Grab", XR_ACTION_TYPE_BOOLEAN_INPUT, m_grabAction);
+        createAction(m_gameplayActionSet, "interact", "Interact/Action (A Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_interactAction);
+        createAction(m_gameplayActionSet, "jump", "Jump (X Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_jumpAction);
+        // createAction(m_gameplayActionSet, "jump", "Attack (Y Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_jumpAction);
+        createAction(m_gameplayActionSet, "cancel", "Dash/Close (B Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_cancelAction);
 
-        XrActionCreateInfo mapActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        mapActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
-        strcpy_s(mapActionInfo.actionName, "map");
-        strcpy_s(mapActionInfo.localizedActionName, "Map");
-        mapActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        mapActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &mapActionInfo, &m_mapAction), "Failed to create map action!");
-
-        XrActionCreateInfo menuActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        menuActionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
-        strcpy_s(menuActionInfo.actionName, "menu");
-        strcpy_s(menuActionInfo.localizedActionName, "Menu");
-        menuActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        menuActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &menuActionInfo, &m_menuAction), "Failed to create menu action!");
-
-        XrActionCreateInfo moveActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        moveActionInfo.actionType = XR_ACTION_TYPE_VECTOR2F_INPUT;
-        strcpy_s(moveActionInfo.actionName, "move");
-        strcpy_s(moveActionInfo.localizedActionName, "Move");
-        moveActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        moveActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &moveActionInfo, &m_moveAction), "Failed to create move action!");
-
-        XrActionCreateInfo cameraActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        cameraActionInfo.actionType = XR_ACTION_TYPE_VECTOR2F_INPUT;
-        strcpy_s(cameraActionInfo.actionName, "camera");
-        strcpy_s(cameraActionInfo.localizedActionName, "Camera");
-        cameraActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        cameraActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &cameraActionInfo, &m_cameraAction), "Failed to create camera action!");
-
-        XrActionCreateInfo poseActionInfo = { XR_TYPE_ACTION_CREATE_INFO };
-        poseActionInfo.actionType = XR_ACTION_TYPE_POSE_INPUT;
-        strcpy_s(poseActionInfo.actionName, "pose");
-        strcpy_s(poseActionInfo.localizedActionName, "Pose");
-        poseActionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
-        poseActionInfo.subactionPaths = m_handPaths.data();
-        checkXRResult(xrCreateAction(m_gameplayActionSet, &poseActionInfo, &m_poseAction), "Failed to create hand pose action!");
+        createAction(m_gameplayActionSet, "ingame_map", "Open/Close Map (Select Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inGame_mapAction);
+        createAction(m_gameplayActionSet, "ingame_inventory", "Open/Close Inventory (Start Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inGame_inventoryAction);
     }
 
     {
-        std::array<XrActionSuggestedBinding, 6> suggestedBindings = {
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/select/click") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/select/click") },
+        XrActionSetCreateInfo actionSetInfo = { XR_TYPE_ACTION_SET_CREATE_INFO };
+        strcpy_s(actionSetInfo.actionSetName, "menu");
+        strcpy_s(actionSetInfo.localizedActionSetName, "Menu Navigation");
+        actionSetInfo.priority = 0;
+        checkXRResult(xrCreateActionSet(m_instance, &actionSetInfo, &m_menuActionSet), "Failed to create controller bindings for the menu!");
+
+        createAction(m_menuActionSet, "scroll", "Scroll (Left Thumbstick)", XR_ACTION_TYPE_VECTOR2F_INPUT, m_scrollAction);
+        createAction(m_menuActionSet, "navigate", "Navigate (Right Thumbstick)", XR_ACTION_TYPE_VECTOR2F_INPUT, m_navigateAction);
+        createAction(m_menuActionSet, "select", "Select (A Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_selectAction);
+        createAction(m_menuActionSet, "cancel", "Back/Cancel (B Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_backAction);
+        createAction(m_menuActionSet, "sort", "Sort (Y Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_sortAction);
+        createAction(m_menuActionSet, "hold", "Hold (X Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_holdAction);
+        createAction(m_menuActionSet, "left_trigger", "Switch To Left Tab (L Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_leftTriggerAction);
+        createAction(m_menuActionSet, "right_trigger", "Switch To Right Tab (R Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_rightTriggerAction);
+
+        createAction(m_menuActionSet, "inmenu_map", "Open/Close Map (Select Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inMenu_mapAction);
+        createAction(m_menuActionSet, "inmenu_inventory", "Open/Close Inventory (Start Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inMenu_inventoryAction);
+    }
+
+    {
+        std::array suggestedBindings = {
+            // === gameplay suggestions ===
+            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") },
             XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
-            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") }
+            XrActionSuggestedBinding{ .action = m_inGame_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_inGame_inventoryAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/select/click") },
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/select/click") },
+
+            // XrActionSuggestedBinding{ .action = m_interactAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+            // XrActionSuggestedBinding{ .action = m_interactAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            // XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/select/click") },
+
+            // === menu suggestions ===
+            XrActionSuggestedBinding{ .action = m_inMenu_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_inMenu_inventoryAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/select/click") },
+            XrActionSuggestedBinding{ .action = m_backAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_sortAction, .binding = GetXRPath("/user/hand/left/input/select/click") },
+            XrActionSuggestedBinding{ .action = m_holdAction, .binding = GetXRPath("/user/hand/left/input/menu/click") }
         };
         XrInteractionProfileSuggestedBinding suggestedBindingsInfo = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
         suggestedBindingsInfo.interactionProfile = GetXRPath("/interaction_profiles/khr/simple_controller");
@@ -281,21 +276,35 @@ void OpenXR::CreateActions() {
     }
 
     {
-        std::array<XrActionSuggestedBinding, 12> suggestedBindings = {
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/value") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/squeeze/value") },
-
-            XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
-            XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
-            XrActionSuggestedBinding{ .action = m_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
-            XrActionSuggestedBinding{ .action = m_menuAction, .binding = GetXRPath("/user/hand/left/input/y/click") },
+        std::array suggestedBindings = {
+            // === gameplay suggestions ===
+            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") },
+            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
+            XrActionSuggestedBinding{ .action = m_inGame_mapAction, .binding = GetXRPath("/user/hand/left/input/thumbstick/click") },
+            XrActionSuggestedBinding{ .action = m_inGame_inventoryAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
 
             XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
             XrActionSuggestedBinding{ .action = m_cameraAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
-            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") },
-            XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
+
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/value") },
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/squeeze/value") },
+            XrActionSuggestedBinding{ .action = m_interactAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
+            XrActionSuggestedBinding{ .action = m_interactAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
+
+            XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
+            XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
+
+            // === menu suggestions ===
+            XrActionSuggestedBinding{ .action = m_scrollAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
+            XrActionSuggestedBinding{ .action = m_navigateAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
+            XrActionSuggestedBinding{ .action = m_inMenu_mapAction, .binding = GetXRPath("/user/hand/left/input/thumbstick/click") },
+            XrActionSuggestedBinding{ .action = m_inMenu_inventoryAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
+            XrActionSuggestedBinding{ .action = m_backAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
+            XrActionSuggestedBinding{ .action = m_sortAction, .binding = GetXRPath("/user/hand/left/input/y/click") },
+            XrActionSuggestedBinding{ .action = m_holdAction, .binding = GetXRPath("/user/hand/left/input/x/click") },
+            XrActionSuggestedBinding{ .action = m_leftTriggerAction, .binding = GetXRPath("/user/hand/left/input/squeeze/value") },
+            XrActionSuggestedBinding{ .action = m_rightTriggerAction, .binding = GetXRPath("/user/hand/right/input/squeeze/value") },
         };
         XrInteractionProfileSuggestedBinding suggestedBindingsInfo = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
         suggestedBindingsInfo.interactionProfile = GetXRPath("/interaction_profiles/oculus/touch_controller");
@@ -305,21 +314,38 @@ void OpenXR::CreateActions() {
     }
 
     {
-        std::array<XrActionSuggestedBinding, 12> suggestedBindings = {
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
-            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/click") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/squeeze/click") },
-
-            XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/trackpad/click") },
-            XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/thumbstick/click") },
-            XrActionSuggestedBinding{ .action = m_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
-            XrActionSuggestedBinding{ .action = m_menuAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
-
-            XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
-            XrActionSuggestedBinding{ .action = m_cameraAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
+        std::array suggestedBindings = {
+            // === gameplay suggestions ===
             XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") },
             XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
+            XrActionSuggestedBinding{ .action = m_inGame_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_inGame_inventoryAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+            // XrActionSuggestedBinding{ .action = m_interactAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
+            // XrActionSuggestedBinding{ .action = m_interactAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
+            // XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/click") },
+            // XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/squeeze/click") },
+            //
+            // XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/trackpad/click") },
+            // XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/thumbstick/click") },
+            // XrActionSuggestedBinding{ .action = m_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            // XrActionSuggestedBinding{ .action = m_menuAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+            //
+            // XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
+            // XrActionSuggestedBinding{ .action = m_cameraAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
+            // XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/left/input/grip/pose") },
+            // XrActionSuggestedBinding{ .action = m_poseAction, .binding = GetXRPath("/user/hand/right/input/grip/pose") },
+
+            // === menu suggestions ===
+            XrActionSuggestedBinding{ .action = m_scrollAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
+            XrActionSuggestedBinding{ .action = m_navigateAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
+            XrActionSuggestedBinding{ .action = m_inMenu_mapAction, .binding = GetXRPath("/user/hand/left/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_inMenu_inventoryAction, .binding = GetXRPath("/user/hand/right/input/menu/click") },
+            XrActionSuggestedBinding{ .action = m_selectAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
+            XrActionSuggestedBinding{ .action = m_backAction, .binding = GetXRPath("/user/hand/right/input/trackpad/click") },
+            XrActionSuggestedBinding{ .action = m_sortAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
+            XrActionSuggestedBinding{ .action = m_holdAction, .binding = GetXRPath("/user/hand/left/input/trackpad/click") },
+            XrActionSuggestedBinding{ .action = m_leftTriggerAction, .binding = GetXRPath("/user/hand/left/input/squeeze/click") },
+            XrActionSuggestedBinding{ .action = m_rightTriggerAction, .binding = GetXRPath("/user/hand/right/input/squeeze/click") },
         };
         XrInteractionProfileSuggestedBinding suggestedBindingsInfo = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
         suggestedBindingsInfo.interactionProfile = GetXRPath("/interaction_profiles/microsoft/motion_controller");
@@ -329,7 +355,7 @@ void OpenXR::CreateActions() {
     }
 
     XrSessionActionSetsAttachInfo attachInfo = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
-    std::array<XrActionSet, 1> actionSets = { m_gameplayActionSet };
+    std::array actionSets = { m_gameplayActionSet, m_menuActionSet };
     attachInfo.countActionSets = (uint32_t)actionSets.size();
     attachInfo.actionSets = actionSets.data();
     checkXRResult(xrAttachSessionActionSets(m_session, &attachInfo), "Failed to attach action sets to session!");
@@ -339,80 +365,124 @@ void OpenXR::CreateActions() {
         createInfo.action = m_poseAction;
         createInfo.subactionPath = m_handPaths[side];
         createInfo.poseInActionSpace = s_xrIdentityPose;
-        checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_input.controllers[side].poseSpace), "Failed to create action space for hand pose!");
+        checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_handSpaces[side]), "Failed to create action space for hand pose!");
     }
 }
 
-void OpenXR::UpdateActions(XrTime predictedFrameTime) {
+void OpenXR::UpdateActions(XrTime predictedFrameTime, bool inMenu) {
+    XrActiveActionSet activeActionSet = { (inMenu ? m_menuActionSet : m_gameplayActionSet), XR_NULL_PATH };
+
     XrActionsSyncInfo syncInfo = { XR_TYPE_ACTIONS_SYNC_INFO };
-    std::array<XrActiveActionSet, 1> activeActionSet = { XrActiveActionSet{ m_gameplayActionSet, XR_NULL_PATH } };
-    syncInfo.countActiveActionSets = (uint32_t)activeActionSet.size();
-    syncInfo.activeActionSets = activeActionSet.data();
+    syncInfo.countActiveActionSets = 1;
+    syncInfo.activeActionSets = &activeActionSet;
     checkXRResult(xrSyncActions(m_session, &syncInfo), "Failed to sync actions!");
 
-    for (EyeSide side : { EyeSide::LEFT, EyeSide::RIGHT }) {
-        XrActionStateGetInfo getGrabInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-        getGrabInfo.action = m_grabAction;
-        getGrabInfo.subactionPath = m_handPaths[side];
-        m_input.controllers[side].grab = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getGrabInfo, &m_input.controllers[side].grab), "Failed to get grab action value!");
+    InputState newState = {};
+    newState.inGame.in_game = !inMenu;
+
+    if (inMenu) {
+        XrActionStateGetInfo getNavigateInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getNavigateInfo.action = m_scrollAction;
+        newState.inMenu.scroll = { XR_TYPE_ACTION_STATE_VECTOR2F };
+        checkXRResult(xrGetActionStateVector2f(m_session, &getNavigateInfo, &newState.inMenu.scroll), "Failed to get navigate action value!");
 
         XrActionStateGetInfo getSelectInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-        getSelectInfo.action = m_selectAction;
-        getSelectInfo.subactionPath = m_handPaths[side];
-        m_input.controllers[side].select = { XR_TYPE_ACTION_STATE_BOOLEAN };
-        checkXRResult(xrGetActionStateBoolean(m_session, &getSelectInfo, &m_input.controllers[side].select), "Failed to get select action value!");
+        getSelectInfo.action = m_navigateAction;
+        newState.inMenu.navigate = { XR_TYPE_ACTION_STATE_VECTOR2F };
+        checkXRResult(xrGetActionStateVector2f(m_session, &getSelectInfo, &newState.inMenu.navigate), "Failed to get select action value!");
 
-        XrActionStateGetInfo getPoseInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-        getPoseInfo.action = m_poseAction;
-        getPoseInfo.subactionPath = m_handPaths[side];
-        m_input.controllers[side].pose = { XR_TYPE_ACTION_STATE_POSE };
-        checkXRResult(xrGetActionStatePose(m_session, &getPoseInfo, &m_input.controllers[side].pose), "Failed to get pose action value!");
+        XrActionStateGetInfo getBackInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getBackInfo.action = m_backAction;
+        newState.inMenu.select = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getBackInfo, &newState.inMenu.select), "Failed to get back action value!");
 
-        if (m_input.controllers[side].pose.isActive) {
-            XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
-            checkXRResult(xrLocateSpace(m_input.controllers[side].poseSpace, m_stageSpace, m_frameTimes[side], &spaceLocation), "Failed to get location from controllers!");
-            if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0) {
-                m_input.controllers[side].poseLocation = spaceLocation;
+        XrActionStateGetInfo getSortInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getSortInfo.action = m_sortAction;
+        newState.inMenu.back = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getSortInfo, &newState.inMenu.back), "Failed to get sort action value!");
+
+        XrActionStateGetInfo getHoldInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getHoldInfo.action = m_holdAction;
+        newState.inMenu.sort = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getHoldInfo, &newState.inMenu.sort), "Failed to get hold action value!");
+
+        XrActionStateGetInfo getLeftTriggerInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getLeftTriggerInfo.action = m_leftTriggerAction;
+        newState.inMenu.leftTrigger = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getLeftTriggerInfo, &newState.inMenu.leftTrigger), "Failed to get left trigger action value!");
+
+        XrActionStateGetInfo getRightTriggerInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getRightTriggerInfo.action = m_rightTriggerAction;
+        newState.inMenu.rightTrigger = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getRightTriggerInfo, &newState.inMenu.rightTrigger), "Failed to get right trigger action value!");
+
+        XrActionStateGetInfo getMap = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getMap.action = m_inMenu_mapAction;
+        newState.inMenu.map = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getMap, &newState.inMenu.map), "Failed to get back action value!");
+
+        XrActionStateGetInfo getInventory = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getInventory.action = m_inMenu_inventoryAction;
+        newState.inMenu.inventory = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getInventory, &newState.inMenu.inventory), "Failed to get back action value!");
+    }
+    else {
+        for (EyeSide side : { EyeSide::LEFT, EyeSide::RIGHT }) {
+            XrActionStateGetInfo getPoseInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+            getPoseInfo.action = m_poseAction;
+            getPoseInfo.subactionPath = m_handPaths[side];
+            newState.inGame.pose[side] = { XR_TYPE_ACTION_STATE_POSE };
+            checkXRResult(xrGetActionStatePose(m_session, &getPoseInfo, &newState.inGame.pose[side]), "Failed to get pose of controller!");
+
+            if (newState.inGame.pose[side].isActive) {
+                XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
+                checkXRResult(xrLocateSpace(m_handSpaces[side], m_stageSpace, predictedFrameTime, &spaceLocation), "Failed to get location from controllers!");
+                if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0) {
+                    newState.inGame.poseLocation[side] = spaceLocation;
+                }
             }
+
+            XrActionStateGetInfo getGrabInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+            getGrabInfo.action = m_grabAction;
+            getGrabInfo.subactionPath = m_handPaths[side];
+            newState.inGame.grab[side] = { XR_TYPE_ACTION_STATE_BOOLEAN };
+            checkXRResult(xrGetActionStateBoolean(m_session, &getGrabInfo, &newState.inGame.grab[side]), "Failed to get grab action value!");
         }
+
+        XrActionStateGetInfo getMap = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getMap.action = m_inGame_mapAction;
+        newState.inGame.map = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getMap, &newState.inGame.map), "Failed to get map action value!");
+
+        XrActionStateGetInfo getInventory = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getInventory.action = m_inGame_inventoryAction;
+        newState.inGame.inventory = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getInventory, &newState.inGame.inventory), "Failed to get inventory action value!");
+
+        XrActionStateGetInfo getMoveInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getMoveInfo.action = m_moveAction;
+        newState.inGame.move = { XR_TYPE_ACTION_STATE_VECTOR2F };
+        checkXRResult(xrGetActionStateVector2f(m_session, &getMoveInfo, &newState.inGame.move), "Failed to get move action value!");
+
+        XrActionStateGetInfo getCameraInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getCameraInfo.action = m_cameraAction;
+        newState.inGame.camera = { XR_TYPE_ACTION_STATE_VECTOR2F };
+        checkXRResult(xrGetActionStateVector2f(m_session, &getCameraInfo, &newState.inGame.camera), "Failed to get camera action value!");
+
+        XrActionStateGetInfo getInteractInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getInteractInfo.action = m_interactAction;
+        getInteractInfo.subactionPath = XR_NULL_PATH;
+        newState.inGame.interact = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getInteractInfo, &newState.inGame.interact), "Failed to get interact action value!");
+
+        XrActionStateGetInfo getJumpInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
+        getJumpInfo.action = m_jumpAction;
+        getJumpInfo.subactionPath = XR_NULL_PATH;
+        newState.inGame.jump = { XR_TYPE_ACTION_STATE_BOOLEAN };
+        checkXRResult(xrGetActionStateBoolean(m_session, &getJumpInfo, &newState.inGame.jump), "Failed to get jump action value!");
     }
 
-    XrActionStateGetInfo getMoveInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-    getMoveInfo.action = m_moveAction;
-    getMoveInfo.subactionPath = XR_NULL_PATH;
-    m_input.move = { XR_TYPE_ACTION_STATE_VECTOR2F };
-    checkXRResult(xrGetActionStateVector2f(m_session, &getMoveInfo, &m_input.move), "Failed to get move action value!");
-
-    XrActionStateGetInfo getCameraInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-    getCameraInfo.action = m_cameraAction;
-    getCameraInfo.subactionPath = XR_NULL_PATH;
-    m_input.camera = { XR_TYPE_ACTION_STATE_VECTOR2F };
-    checkXRResult(xrGetActionStateVector2f(m_session, &getCameraInfo, &m_input.camera), "Failed to get camera action value!");
-
-    XrActionStateGetInfo getCancelInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-    getCancelInfo.action = m_cancelAction;
-    getCancelInfo.subactionPath = XR_NULL_PATH;
-    m_input.cancel = { XR_TYPE_ACTION_STATE_BOOLEAN };
-    checkXRResult(xrGetActionStateBoolean(m_session, &getCancelInfo, &m_input.cancel), "Failed to get cancel action value!");
-
-    XrActionStateGetInfo getJumpInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-    getJumpInfo.action = m_jumpAction;
-    getJumpInfo.subactionPath = XR_NULL_PATH;
-    m_input.jump = { XR_TYPE_ACTION_STATE_BOOLEAN };
-    checkXRResult(xrGetActionStateBoolean(m_session, &getJumpInfo, &m_input.jump), "Failed to get jump action value!");
-
-    XrActionStateGetInfo getMapInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-    getMapInfo.action = m_mapAction;
-    getMapInfo.subactionPath = XR_NULL_PATH;
-    m_input.map = { XR_TYPE_ACTION_STATE_BOOLEAN };
-    checkXRResult(xrGetActionStateBoolean(m_session, &getMapInfo, &m_input.map), "Failed to get map action value!");
-
-    XrActionStateGetInfo getMenuInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-    getMenuInfo.action = m_menuAction;
-    getMenuInfo.subactionPath = XR_NULL_PATH;
-    m_input.menu = { XR_TYPE_ACTION_STATE_BOOLEAN };
-    checkXRResult(xrGetActionStateBoolean(m_session, &getMenuInfo, &m_input.menu), "Failed to get menu action value!");
+    this->m_input.store(newState);
 }
 
 bool firstInit = true;
