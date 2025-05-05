@@ -33,6 +33,7 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "D3DCompiler.lib")
+#pragma comment(lib, "dxguid.lib")
 
 #include <wrl/client.h>
 
@@ -65,11 +66,6 @@ inline std::string& toLower(std::string str) {
     std::ranges::transform(str, str.begin(), [](unsigned char c) { return std::tolower(c); });
     return str;
 }
-
-struct XrCompositionLayerProjectionWithDepth {
-    std::array<XrCompositionLayerProjectionView, 2> colors;
-    std::array<XrCompositionLayerDepthInfoKHR, 2> depths;
-};
 
 template<class T, template<class...> class U>
 inline constexpr bool is_instance_of_v = std::false_type{};

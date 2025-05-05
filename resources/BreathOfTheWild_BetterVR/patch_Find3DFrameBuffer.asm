@@ -81,9 +81,9 @@ lwz r5, 0x14(r1)
 lwz r6, 0x10(r1)
 addi r1, r1, 0x20
 
-bla import.gx2.GX2DrawDone
-bla import.gx2.GX2Flush
-bla import.gx2.GX2DrawDone
+;bla import.gx2.GX2DrawDone
+;bla import.gx2.GX2Flush
+;bla import.gx2.GX2DrawDone
 
 
 skipClearing3DColorBuffer:
@@ -133,9 +133,9 @@ beq skipClearing3DDepthBuffer
 addi r3, r3, 0xBC ; r3 is now the agl::RenderBuffer::mDepthTarget::mGX2FrameBuffer object
 
 bl import.gx2.GX2ClearDepthStencilEx
-bla import.gx2.GX2DrawDone
-bla import.gx2.GX2Flush
-bla import.gx2.GX2DrawDone
+;bla import.gx2.GX2DrawDone
+;bla import.gx2.GX2Flush
+;bla import.gx2.GX2DrawDone
 
 stwu r1, -0x20(r1)
 stw r3, 0x1C(r1)

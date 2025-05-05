@@ -66,16 +66,9 @@ RND_D3D12::RND_D3D12() {
         .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE
     };
     checkHResult(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_queue)), "Failed to create D3D12 command queue!");
-
-    for (auto& allocator : m_allocators) {
-        checkHResult(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator)), "Failed to create D3D12 command allocator!");
-    }
 }
 
 RND_D3D12::~RND_D3D12() {
-    for (auto& allocator : m_allocators) {
-        allocator->Release();
-    }
 }
 
 template <bool depth>

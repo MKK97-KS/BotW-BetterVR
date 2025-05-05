@@ -15,18 +15,8 @@ public:
     explicit RND_Renderer(XrSession xrSession);
     ~RND_Renderer();
 
-    struct QueuedFrame {
-        XrTime predictedDisplayTime = 0;
-        std::vector<XrCompositionLayerBaseHeader*> compositionLayers;
-        // scope storage
-        XrCompositionLayerProjectionWithDepth temp_3dLayers;
-        XrCompositionLayerProjection temp_3dLayers2;
-        XrCompositionLayerQuad temp_2dLayers;
-    };
-
     void StartFrame();
-    void EndFrame(QueuedFrame& frame);
-    void PresentFrame(QueuedFrame frame);
+    void EndFrame();
     std::optional<std::array<XrView, 2>> UpdateViews(XrTime predictedDisplayTime);
     std::optional<std::array<XrView, 2>> GetPoses() const { return m_currViews; }
     std::optional<XrFovf> GetFOV(OpenXR::EyeSide side) const { return m_currViews.transform([side](auto& views) { return views[side].fov; }); }
@@ -43,7 +33,7 @@ public:
         void PrepareRendering(OpenXR::EyeSide side);
         void StartRendering();
         void Render(OpenXR::EyeSide side);
-        XrCompositionLayerProjectionWithDepth FinishRendering();
+        const std::array<XrCompositionLayerProjectionView, 2>& FinishRendering();
 
         float GetAspectRatio(OpenXR::EyeSide side) const { return m_swapchains[side]->GetWidth() / (float)m_swapchains[side]->GetHeight(); }
 
@@ -53,6 +43,9 @@ public:
         std::array<std::unique_ptr<RND_D3D12::PresentPipeline<true>>, 2> m_presentPipelines;
         std::array<std::unique_ptr<SharedTexture>, 2> m_textures;
         std::array<std::unique_ptr<SharedTexture>, 2> m_depthTextures;
+
+        std::array<XrCompositionLayerProjectionView, 2> m_projectionViews = {};
+        std::array<XrCompositionLayerDepthInfoKHR, 2> m_projectionViewsDepthInfo = {};
 
         std::array<std::atomic_bool, 2> m_copiedColor = { false, false };
         std::array<std::atomic_bool, 2> m_copiedDepth = { false, false };
@@ -100,18 +93,6 @@ protected:
     XrSession m_session;
     XrFrameState m_frameState = { XR_TYPE_FRAME_STATE };
     std::optional<std::array<XrView, 2>> m_currViews;
-
-    struct QueuedFrames {
-        // start of frame
-        XrTime predictedDisplayTime = 0;
-        // middle of frame
-        std::array<XrCompositionLayerProjectionView, 2> projectionViews = {};
-        std::array<XrCompositionLayerDepthInfoKHR, 2> projectionViewsDepthInfo = {};
-    };
-
-    std::vector<QueuedFrames> m_queuedFrames;
-
-    std::optional<OpenXR::EyeSide> m_eyeSide = std::nullopt;
 
     std::atomic_bool m_isInitialized = false;
     std::atomic_bool m_presented3DLastFrame = false;

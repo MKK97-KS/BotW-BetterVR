@@ -223,9 +223,7 @@ void CemuHooks::hook_EndCameraSide(PPCInterpreter_t* hCPU) {
     OpenXR::EyeSide side = hCPU->gpr[3] == 0 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
 
     if (VRManager::instance().XR->GetRenderer()->IsInitialized() && side == OpenXR::EyeSide::RIGHT) {
-        RND_Renderer::QueuedFrame frame;
-        VRManager::instance().XR->GetRenderer()->EndFrame(frame);
-        VRManager::instance().XR->GetRenderer()->PresentFrame(frame);
+        VRManager::instance().XR->GetRenderer()->EndFrame();
     }
 
     Log::print("{0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0}", side == OpenXR::EyeSide::LEFT ? "LEFT" : "RIGHT");

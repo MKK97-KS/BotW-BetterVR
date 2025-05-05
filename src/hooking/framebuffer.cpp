@@ -3,6 +3,8 @@
 #include "layer.h"
 #include "utils/vulkan_utils.h"
 
+#include <codecvt>
+
 
 std::mutex lockImageResolutions;
 std::unordered_map<VkImage, std::pair<VkExtent2D, VkFormat>> imageResolutions;
@@ -124,9 +126,9 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
 
             // note: This uses vkCmdCopyImage to copy the image to an OpenXR-specific texture. s_activeCopyOperations queues a semaphore for the D3D12 side to wait on.
             SharedTexture* texture = layer3D->CopyColorToLayer(side, commandBuffer, image);
-            Log::print("[VULKAN] Waiting for {} side to be 0", side == OpenXR::EyeSide::LEFT ? "left" : "right");
+            // Log::print("[VULKAN] Waiting for {} side to be 0", side == OpenXR::EyeSide::LEFT ? "left" : "right");
             s_activeCopyOperations.emplace_back(commandBuffer, texture);
-            Log::print("[VULKAN] Signalling for {} side to be 1", side == OpenXR::EyeSide::LEFT ? "left" : "right");
+            Log::print("[VULKAN] Queueing up a 3D_COLOR signal inside cmd buffer {} for {} side", (void*)commandBuffer, side == OpenXR::EyeSide::LEFT ? "left" : "right");
             VulkanUtils::DebugPipelineBarrier(commandBuffer);
             VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
 
@@ -157,9 +159,10 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
             }
 
             // only copy the first attempt at capturing when GX2ClearColor is called with this capture index since the game/Cemu clears the 2D layer twice
-            // Log::print("[VULKAN] Waiting for {} side to be 0", side == OpenXR::EyeSide::LEFT ? "left" : "right");
+            // Log::print("[VULKAN - 2D Layer] Waiting for {} side to be 0", side == OpenXR::EyeSide::LEFT ? "left" : "right");
             SharedTexture* texture = layer2D->CopyColorToLayer(commandBuffer, image);
             s_activeCopyOperations.emplace_back(commandBuffer, texture);
+            Log::print("[VULKAN] Queueing up a 2D_COLOR signal inside cmd buffer {} for {} side", (void*)commandBuffer, side == OpenXR::EyeSide::LEFT ? "left" : "right");
             // Log::print("[VULKAN] Signalling for {} side to be 1", side == OpenXR::EyeSide::LEFT ? "left" : "right");
 
             VulkanUtils::DebugPipelineBarrier(commandBuffer);
@@ -193,8 +196,6 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
 void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatch* pDispatch, VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
     // check for magical clear values
     if (rangeCount == 1 && pDepthStencil->depth >= 0.011456789 && pDepthStencil->depth <= 0.013456789) {
-        Log::print("Found depth stencil clear value: {} - {}", pDepthStencil->depth, pDepthStencil->stencil);
-
         // stencil value is the capture idx
         const uint32_t captureIdx = pDepthStencil->stencil;
         const OpenXR::EyeSide side = captureIdx == 1 ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
@@ -207,14 +208,16 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatc
             return;
         }
 
-        Log::print("Capturing depth for 3D layer");
+        Log::print("[VULKAN] Clearing depth image for 3D layer for {} side ({})", side == OpenXR::EyeSide::LEFT ? "left" : "right", pDepthStencil->stencil);
 
         if (captureIdx == 1 || captureIdx == 2) {
             // 3D layer - depth texture for 3D rendering
             if (s_curr3DDepthImage == VK_NULL_HANDLE) {
                 lockImageResolutions.lock();
                 if (const auto it = imageResolutions.find(image); it != imageResolutions.end()) {
+                    Log::print("Depth 3: Found depth image {} with format {} for 3D layer", (void*)it->first, it->second.second);
                     if (it->second.second == VK_FORMAT_D32_SFLOAT) {
+                        Log::print(" -> Depth 3: Okay, I resolved the issue, phew");
                         s_curr3DDepthImage = it->first;
                     }
                 }
@@ -222,6 +225,7 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatc
             }
 
             if (image != s_curr3DDepthImage) {
+                Log::print("[VULKAN] Depth image is not the same as the current 3D depth image! ({} != {})", (void*)image, (void*)s_curr3DDepthImage);
                 return;
             }
 
@@ -235,6 +239,7 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatc
 
             SharedTexture* texture = layer3D->CopyDepthToLayer(side, commandBuffer, image);
             s_activeCopyOperations.emplace_back(commandBuffer, texture);
+            Log::print("[VULKAN] Queueing up a DEPTH signal inside cmd buffer {} for {} side", (void*)commandBuffer, side == OpenXR::EyeSide::LEFT ? "left" : "right");
             return;
         }
     }
@@ -322,10 +327,20 @@ VkResult VkDeviceOverrides::QueueSubmit(const vkroots::VkDeviceDispatch* pDispat
                         modifiedSubmitInfo.waitSemaphores.emplace_back(it->second->GetSemaphore());
                         modifiedSubmitInfo.waitDstStageMasks.emplace_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
                         modifiedSubmitInfo.timelineWaitValues.emplace_back(0);
+                        wchar_t name[128] = {};
+                        UINT size = sizeof(name);
+                        it->second->d3d12GetTexture()->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
+
+                        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+                        std::string nameStr = converter.to_bytes(name);
+
+
+                        Log::print("[VULKAN] Waiting for {} to be 0 inside the cmd buffer {}", nameStr, (void*)submitInfo.pCommandBuffers[j]);
 
                         // signal to D3D12/XR rendering that the shared texture can be rendered to VR headset
                         modifiedSubmitInfo.signalSemaphores.emplace_back(it->second->GetSemaphore());
-                        modifiedSubmitInfo.timelineSignalValues.emplace_back(1);
+                        modifiedSubmitInfo.timelineSignalValues.emplace_back(0);
+                        Log::print("[VULKAN] Signalling to {} to be 1 inside the cmd buffer {}", nameStr, (void*)submitInfo.pCommandBuffers[j]);
                         it = s_activeCopyOperations.erase(it);
                     }
                     else {
