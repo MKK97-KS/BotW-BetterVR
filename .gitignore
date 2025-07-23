@@ -46,6 +46,8 @@ CemuTest/
 
 /MetaXRSimulator/*
 !/MetaXRSimulator/.gitkeep
+!/MetaXRSimulator/config/sim_core_configuration.json
+!/MetaXRSimulator/config/sim_core_configuration_ci.json
 
 ReverseEngineering/
 

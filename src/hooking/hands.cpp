@@ -63,10 +63,6 @@ static void ModifyWeaponMtxToVRPose(OpenXR::EyeSide side, BEMatrix34& toBeAdjust
 void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    //if (CemuHooks::GetSettings().IsThirdPersonMode()) {
-    //    return;
-    //}
-
     // r3 holds the source actor pointer
     // r4 holds the bone name
     // r5 holds the matrix that is to be set
@@ -76,7 +72,12 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     // r9 returns 1 if the weapon is modified
     // r10 holds the camera pointer
 
-    hCPU->gpr[9] = 0;
+    hCPU->gpr[9] = 0; // this is used to indicate whether the weapon was modified
+    hCPU->gpr[11] = 0; // this is used to drop the weapon if the grip button is pressed
+
+    if (CemuHooks::GetSettings().IsThirdPersonMode()) {
+        return;
+    }
 
     uint32_t actorPtr = hCPU->gpr[3];
     uint32_t boneNamePtr = hCPU->gpr[4];
@@ -86,7 +87,7 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     uint32_t targetActorPtr = hCPU->gpr[8];
     uint32_t cameraPtr = hCPU->gpr[10];
 
-    uint32_t actorLinkPtr = actorPtr + offsetof(ActorWiiU, baseProcPtr);
+    uint32_t actorLinkPtr = actorPtr + offsetof(ActorWiiU, name) + offsetof(sead::FixedSafeString40, c_str);
     uint32_t actorNamePtr = 0;
     readMemoryBE(actorLinkPtr, &actorNamePtr);
     if (actorNamePtr == 0)
@@ -135,9 +136,9 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
 void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    //if (CemuHooks::GetSettings().IsThirdPersonMode()) {
-    //    return;
-    //}
+    if (CemuHooks::GetSettings().IsThirdPersonMode()) {
+        return;
+    }
 
     uint32_t weaponPtr = hCPU->gpr[3];
     uint32_t parentActorPtr = hCPU->gpr[4];

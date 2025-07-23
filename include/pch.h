@@ -398,11 +398,11 @@ struct data_VRSettingsIn {
     }
 
     bool IsFirstPersonMode() const {
-        return cameraModeSetting == 0;
+        return cameraModeSetting == 1;
     }
 
     bool IsThirdPersonMode() const {
-        return cameraModeSetting == 1;
+        return cameraModeSetting == 0;
     }
 
     bool UIFollowsLookingDirection() const {

@@ -15,7 +15,6 @@ $guiFollowMode:int = 1
 
 $cameraDistance = 0.5
 $cameraHeight = -0.5
-$linkOpacity = 1.0
 $enableDebugOverlay:int = 0
 $leftHanded:int = 0
 $buggyAngularVelocity:int = 0 # Whether the angular velocity is wrongly provided in local space. Possible Values: 0 is auto; 1 is forced on; 2 is forced off
@@ -27,7 +26,6 @@ $buggyAngularVelocity:int = 0 # Whether the angular velocity is wrongly provided
 name = Third-Person Camera (Most Stable & Casual, Seated Recommended)
 category = Camera Mode
 $cameraMode = 0
-$linkOpacity = 1.0
 
 [Preset]
 name = First-Person Camera (Most Immersive, Standing Recommended)
@@ -35,8 +33,6 @@ category = Camera Mode
 default = 1
 # TODO: use Player->mode_slippingOrTreeClimbing to maybe zoom out when a wall is climbed
 $cameraMode = 1
-$linkOpacity = 0.0
-$cameraDistance = 0.0
 
 
 # Motion & Gamepad Controls

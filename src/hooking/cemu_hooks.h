@@ -37,6 +37,9 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_EnableWeaponAttackSensor", &hook_EnableWeaponAttackSensor);
         osLib_registerHLEFunction("coreinit", "hook_EquipWeapon", &hook_EquipWeapon);
 
+        osLib_registerHLEFunction("coreinit", "hook_SetActorOpacity", &hook_SetActorOpacity);
+        osLib_registerHLEFunction("coreinit", "hook_UseCameraDistance", &hook_UseCameraDistance);
+
         osLib_registerHLEFunction("coreinit", "hook_updateCameraOLD", &hook_updateCameraOLD);
     };
     ~CemuHooks() {
@@ -79,6 +82,8 @@ private:
     static void hook_CameraRotationControl(PPCInterpreter_t* hCPU);
     static void hook_ApplyCameraRotation(PPCInterpreter_t* hCPU);
     static void hook_EndCameraSide(PPCInterpreter_t* hCPU);
+    static void hook_SetActorOpacity(PPCInterpreter_t* hCPU);
+    static void hook_UseCameraDistance(PPCInterpreter_t* hCPU);
 
     static void hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU);
     static void hook_EquipWeapon(PPCInterpreter_t* hCPU);

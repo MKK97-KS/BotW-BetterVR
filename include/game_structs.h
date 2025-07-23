@@ -7,6 +7,23 @@ namespace sead {
         BEType<uint32_t> vtable;
     };
 
+    struct BufferedSafeString : SafeString {
+        BEType<int32_t> length;
+    };
+    static_assert(sizeof(BufferedSafeString) == 0x0C, "BufferedSafeString size mismatch");
+
+    struct FixedSafeString40 : BufferedSafeString {
+        char data[64];
+
+        std::string getLE() const {
+            if (c_str.getLE() == 0) {
+                return std::string();
+            }
+            return std::string(reinterpret_cast<const char*>(c_str.getBE()), strnlen(reinterpret_cast<const char*>(c_str.getBE()), 0x40));
+        }
+    };
+    static_assert(sizeof(FixedSafeString40) == 0x4C, "FixedSafeString40 size mismatch");
+
     struct PtrArrayImpl {
         BEType<uint32_t> size;
         BEType<uint32_t> capacity;
@@ -28,10 +45,21 @@ struct ActorPhysics {
     sead::PtrArrayImpl contactInfo;
 };
 
-struct ActorWiiU {
-    uint32_t vtable;
-    BEType<uint32_t> baseProcPtr;
-    uint8_t unk_08[0xF4 - 0x08];
+struct BaseProc {
+    BEType<uint32_t> secondVTable;
+    sead::FixedSafeString40 name;
+    BEType<uint32_t> id;
+    BEType<uint8_t> state;
+    BEType<uint8_t> prio;
+    BEType<uint8_t> unk_52;
+    BEType<uint8_t> unk_53;
+    PADDED_BYTES(0x54, 0xE0);
+    BEType<uint32_t> vtable;
+};
+static_assert(sizeof(BaseProc) == 0xEC, "BaseProc size mismatch");
+
+struct ActorWiiU : BaseProc {
+    PADDED_BYTES(0xEC, 0xF0);
     uint32_t physicsMainBodyPtr; // 0xF4
     uint32_t physicsTgtBodyPtr; // 0xF8
     uint8_t unk_FC[0x1F8 - 0xFC];
@@ -85,6 +113,27 @@ struct ActorWiiU {
     BEType<float> lodDrawDistanceMultiplier;
     PADDED_BYTES(0x494, 0x538);
 };
+static_assert(sizeof(ActorWiiU) == 0x53C, "ActorWiiU size mismatch");
+
+struct DynamicActor : ActorWiiU {
+    PADDED_BYTES(0x53C, 0x7C8);
+};
+static_assert(sizeof(DynamicActor) == 0x7CC, "DynamicActor size mismatch");
+
+struct ActorWeapon {
+    PADDED_BYTES(0x00, 0x0C);
+};
+
+struct ActorWeapons {
+    ActorWeapon weapons[6];
+    BEType<uint32_t> actorThisPtr;
+    BEType<uint32_t> actorWeaponsVtblPtr;
+};
+static_assert(sizeof(ActorWeapons) == 0x068, "ActorWeapons size mismatch");
+
+struct PlayerOrEnemy : DynamicActor, ActorWeapons {
+    BEType<float> float834;
+};
 
 struct WeaponBase : ActorWiiU {
     PADDED_BYTES(0x53C, 0x5F0);
@@ -95,8 +144,8 @@ struct WeaponBase : ActorWiiU {
     BEType<uint8_t> field_5FF;
     PADDED_BYTES(0x600, 0x72C);
 };
-
 static_assert(offsetof(WeaponBase, isEquippedProbably) == 0x5F8, "WeaponBase.isEquippedProbably offset mismatch");
+static_assert(sizeof(WeaponBase) == 0x72C, "WeaponBase size mismatch");
 
 struct Struct20 {
     BEType<uint32_t> __vftable;
@@ -136,6 +185,7 @@ struct DamageMgr {
     BEType<uint8_t> field_4A;
     BEType<uint8_t> field_4B;
 };
+static_assert(sizeof(DamageMgr) == 0x4C, "DamageMgr size mismatch");
 
 struct AttackSensorInitArg {
     BEType<uint32_t> mode;
@@ -237,11 +287,10 @@ struct Weapon : WeaponBase {
     BEType<uint16_t> otherFlags;
     PADDED_BYTES(0xA18, 0xB58);
 };
-
 static_assert(offsetof(Weapon, setupAttackSensor.resetAttack) == 0x8A0, "Weapon.setupAttackSensor.resetAttack offset mismatch");
 static_assert(offsetof(Weapon, setupAttackSensor.mode) == 0x874, "Weapon.setupAttackSensor.mode offset mismatch");
 static_assert(offsetof(Weapon, finalizedAttackSensor.resetAttack) == 0x950, "Weapon.finalizedAttackSensor.resetAttack offset mismatch");
-
+static_assert(sizeof(Weapon) == 0xB5C, "Weapon size mismatch");
 
 struct ActCamera : ActorWiiU {
     BEType<uint32_t> dword53C;
@@ -251,13 +300,7 @@ struct ActCamera : ActorWiiU {
     PADDED_BYTES(0x580, 0x5BC);
     BEMatrix34 finalCamMtx;
 };
-
 static_assert(offsetof(ActCamera, origCamMtx) == 0x550, "ActCamera.origCamMtx offset mismatch");
 static_assert(offsetof(ActCamera, finalCamMtx) == 0x5C0, "ActCamera.finalCamMtx offset mismatch");
 
 #pragma pack(pop)
-
-static_assert(sizeof(ActorWiiU) == 0x53C);
-static_assert(sizeof(WeaponBase) == 0x72C);
-static_assert(sizeof(Weapon) == 0xB5C);
-static_assert(sizeof(DamageMgr) == 0x4C);

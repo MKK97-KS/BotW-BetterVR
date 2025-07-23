@@ -24,7 +24,7 @@ void CemuHooks::hook_UpdateActorList(PPCInterpreter_t* hCPU) {
         s_knownActors.clear();
     }
 
-    uint32_t actorLinkPtr = hCPU->gpr[6] + offsetof(ActorWiiU, baseProcPtr);
+    uint32_t actorLinkPtr = hCPU->gpr[6] + offsetof(ActorWiiU, name) + offsetof(sead::FixedSafeString40, c_str);
     uint32_t actorNamePtr = 0;
     readMemoryBE(actorLinkPtr, &actorNamePtr);
     if (actorNamePtr == 0)
@@ -154,6 +154,10 @@ void EntityDebugger::UpdateEntityMemory() {
             addField.operator()<BEType<uint16_t>>("Weapon::weaponFlags", offsetof(Weapon, weaponFlags));
             addField.operator()<BEType<uint16_t>>("Weapon::otherFlags", offsetof(Weapon, otherFlags));
             addField.operator()<BEType<uint32_t>>("Weapon::heldIndex", offsetof(Weapon, field_5F4));
+        }
+
+        if (actorName.starts_with("GameROMPlayer")) {
+            addMemoryRange("ActorWeapons", actorPtr + offsetof(PlayerOrEnemy, weapons), 0x68);
         }
 
         BEMatrix34 mtx = CemuHooks::getMemory<BEMatrix34>(actorPtr + offsetof(ActorWiiU, mtx));

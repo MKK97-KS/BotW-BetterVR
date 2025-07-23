@@ -159,7 +159,10 @@ void CemuHooks::hook_GetRenderCamera(PPCInterpreter_t* hCPU) {
         glm::mat4 worldGame = glm::inverse(viewGame);
         glm::quat baseRot = glm::quat_cast(worldGame);
 
-        glm::vec3 basePos = glm::vec3(worldGame[3]) + glm::vec3(0.0f, GetSettings().playerHeightSetting.getLE(), 0.0f);
+        glm::vec3 basePos = glm::vec3(worldGame[3]);
+        if (GetSettings().IsFirstPersonMode()) {
+            basePos += glm::vec3(0.0f, GetSettings().playerHeightSetting.getLE(), 0.0f);
+        }
 
         // vr camera
         if (!VRManager::instance().XR->GetRenderer()->GetPose(cameraSide).has_value()) {
@@ -326,4 +329,44 @@ void CemuHooks::hook_EndCameraSide(PPCInterpreter_t* hCPU) {
     Log::print("{0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0} {0}", side == OpenXR::EyeSide::LEFT ? "LEFT" : "RIGHT");
     Log::print("===============================================================================");
     Log::print("");
+}
+
+void CemuHooks::hook_UseCameraDistance(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    if (GetSettings().IsFirstPersonMode()) {
+        hCPU->fpr[13].fp0 = 0.0f;
+    }
+    else {
+        hCPU->fpr[13].fp0 = hCPU->fpr[10].fp0;
+    }
+}
+
+constexpr uint32_t playerVTable = 0x101E5FFC;
+
+void CemuHooks::hook_SetActorOpacity(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    double toBeSetOpacity = hCPU->fpr[0].fp0;
+    uint32_t actorPtr = hCPU->gpr[3];
+
+    ActorWiiU actor = {};
+    readMemory(actorPtr, &actor);
+
+    if (actor.vtable.getLE() == playerVTable && GetSettings().IsFirstPersonMode()) {
+        //Log::print("[PPC] Setting player opacity to {} for actor at {:08X}", toBeSetOpacity, actorPtr);
+        toBeSetOpacity = 0.0;
+        uint8_t opacityOrSomethingEnabled = 1;
+        writeMemoryBE(actorPtr + offsetof(ActorWiiU, startModelOpacity), &toBeSetOpacity);
+        writeMemoryBE(actorPtr + offsetof(ActorWiiU, modelOpacity), &toBeSetOpacity);
+        writeMemoryBE(actorPtr + offsetof(ActorWiiU, opacityOrSomethingEnabled), &opacityOrSomethingEnabled);
+        return;
+    }
+
+    if (actor.modelOpacity.getLE() != toBeSetOpacity) {
+        //Log::print("[PPC] Setting actor opacity to {} for actor at {:08X}", toBeSetOpacity, actorPtr);
+        uint8_t opacityOrSomethingEnabled = 1;
+        writeMemoryBE(actorPtr + offsetof(ActorWiiU, modelOpacity), &toBeSetOpacity);
+        writeMemoryBE(actorPtr + offsetof(ActorWiiU, opacityOrSomethingEnabled), &opacityOrSomethingEnabled);
+    }
 }
