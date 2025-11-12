@@ -541,8 +541,8 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
 
         // player model orientation in world space
         BEMatrix34 bePlayerMtx = getMemory<BEMatrix34>(s_playerMtxAddress);
-        glm::mat4x3 playerMtx = bePlayerMtx.getLEMatrix(); // world-space
-        glm::mat4 playerMtx4 = glm::mat4(playerMtx);       // promote to 4×4
+        glm::mat4x3 playerMtx = bePlayerMtx.getLEMatrix();
+        glm::mat4 playerMtx4 = glm::mat4(playerMtx);
         glm::mat4 playerPos = glm::translate(glm::identity<glm::fmat4>(), glm::fvec3(playerMtx[3]));
         glm::mat4 playerRot = glm::mat4_cast(glm::quat_cast(playerMtx4));
 
@@ -553,7 +553,7 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
         // todo: what's the correct hand holding offset here? angle between grip and pointing pose?
         if (leftOrRightSide) {
             handCorrectionQuat *= glm::angleAxis(glm::radians(90.0f), glm::fvec3(0, 1, 0));
-            handCorrectionQuat *= glm::angleAxis(glm::radians(-45.0f), glm::fvec3(0, 0, 1));
+            handCorrectionQuat *= glm::angleAxis(glm::radians(-90.0f), glm::fvec3(0, 0, 1));
             handCorrectionQuat *= glm::angleAxis(glm::radians(-45.0f), glm::fvec3(1, 0, 0));
             handCorrectionQuat *= glm::angleAxis(glm::radians(45.0f), glm::fvec3(1, 0, 0));
         }
@@ -562,6 +562,9 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
             handCorrectionQuat *= glm::angleAxis(glm::radians(-180.0f), glm::fvec3(0, 1, 0));
             handCorrectionQuat *= glm::angleAxis(glm::radians(270.0f), glm::fvec3(1, 0, 0));
         }
+        // slightly tweak it to align better to VR pose
+        handCorrectionQuat *= glm::angleAxis(glm::radians(20.0f), glm::fvec3(0, 0, 1));
+
         glm::fmat4 handCorrections = glm::mat4_cast(handCorrectionQuat);
 
 
