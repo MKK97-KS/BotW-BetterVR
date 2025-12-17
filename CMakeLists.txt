@@ -1,5 +1,5 @@
-set(VCPKG_TARGET_TRIPLET "x64-windows-static-md")
-set(VCPKG_HOST_TRIPLET "x64-windows-static-md")
+set(VCPKG_TARGET_TRIPLET "x64-windows-static")
+set(VCPKG_HOST_TRIPLET "x64-windows-static")
 
 cmake_minimum_required(VERSION 3.27.0)
 project(BetterVR_Layer VERSION 0.1.0 LANGUAGES CXX)
@@ -26,7 +26,7 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT B
 
 # Set compilation options
 add_compile_definitions(NOMINMAX)
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>$<$<CONFIG:RelWithDebInfo>:ProgramDatabase>")
 
 # Find vcpkg dependencies
