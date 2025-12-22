@@ -15,6 +15,12 @@ public:
         }
     }
 
+    void initializeXrPaths(XrInstance instance)
+    {
+        xrStringToPath(instance, "/user/hand/left", &m_handSubactionPaths[0]);
+        xrStringToPath(instance, "/user/hand/right", &m_handSubactionPaths[1]);
+    }
+
     // pattern: uint8_t* rumble pattern
     // length: length in bits
     void controlMotor(uint8_t* pattern, uint8_t length) {
@@ -38,7 +44,9 @@ public:
         stop_haptic();
     }
 
-    void startSimpleRumble(double duration, float frequency, float amplitude) {
+    void startSimpleRumble(bool leftHand, double duration, float frequency, float amplitude) {
+
+
         // duration is in seconds
         XrHapticVibration vibration = {};
         vibration.type = XR_TYPE_HAPTIC_VIBRATION;
@@ -51,7 +59,7 @@ public:
         haptic_info.type = XR_TYPE_HAPTIC_ACTION_INFO;
         haptic_info.next = nullptr;
         haptic_info.action = m_haptic_action;
-        haptic_info.subactionPath = m_subaction_path;
+        haptic_info.subactionPath = m_handSubactionPaths[leftHand ? 0 : 1];
 
         checkXRResult(xrApplyHapticFeedback(m_session, &haptic_info, (const XrHapticBaseHeader*)&vibration), "Failed to start rumble");
     }
@@ -161,9 +169,11 @@ void apply_haptic_infinite() {
         }
     }
 
+    XrInstance m_instance;
     XrSession m_session;
     XrAction m_haptic_action;
     XrPath m_subaction_path;
+    XrPath m_handSubactionPaths[2];
 
     std::queue<std::vector<bool>> m_rumble_queue;
     std::mutex m_rumble_mutex;
