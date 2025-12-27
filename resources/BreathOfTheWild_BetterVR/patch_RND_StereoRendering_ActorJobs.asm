@@ -379,7 +379,7 @@ lis r3, currentEyeSide@ha
 lwz r3, currentEyeSide@l(r3)
 cmpwi r3, 1
 li r3, 999
-beqlr ; if right eye, return 9999999
+beqlr ; if right eye, return 999
 li r3, 0
 blr
 
@@ -397,6 +397,69 @@ blr
 
 0x02D0A168 = bla storePlayerNormal
 
+0x037966A8 = getPhysicsField60:
+
+onlyRunPlayerNormalStateForLeftEye:
+mflr r0
+stwu r1, -0x10(r1)
+stw r0, 0x14(r1)
+stw r3, 0x0C(r1)
+stw r4, 0x08(r1)
+
+lis r4, currentEyeSide@ha
+lwz r4, currentEyeSide@l(r4)
+cmpwi r4, 1
+li r3, 0
+beq skip_onlyRunPlayerNormalStateForLeftEye ; skip if right eye
+
+; get actor physics field
+lis r4, getPhysicsField60@ha
+addi r4, r4, getPhysicsField60@l
+mtctr r4
+lwz r3, 0x0C(r1)
+bctrl ; bl getPhysicsField60
+
+skip_onlyRunPlayerNormalStateForLeftEye:
+lwz r4, 0x08(r1)
+;lwz r3, 0x0C(r1)
+lwz r0, 0x14(r1)
+addi r1, r1, 0x10
+mtlr r0
+blr
+
+0x02D149DC = bla onlyRunPlayerNormalStateForLeftEye
+
+
+onlyRunPlayerNormalForLeftEye:
+mflr r0
+stwu r1, -0x10(r1)
+stw r0, 0x14(r1)
+stw r3, 0x0C(r1)
+stw r4, 0x08(r1)
+
+lis r4, currentEyeSide@ha
+lwz r4, currentEyeSide@l(r4)
+cmpwi r4, 1
+li r3, 0
+beq skip_onlyRunPlayerNormalForLeftEye ; skip if right eye
+
+; get actor physics field
+lis r4, getPhysicsField60@ha
+addi r4, r4, getPhysicsField60@l
+mtctr r4
+lwz r3, 0x0C(r1)
+bctrl ; bl getPhysicsField60
+
+skip_onlyRunPlayerNormalForLeftEye:
+lwz r4, 0x08(r1)
+;lwz r3, 0x0C(r1)
+lwz r0, 0x14(r1)
+addi r1, r1, 0x10
+mtlr r0
+blr
+
+;0x02D16554 = bla onlyRunPlayerNormalForLeftEye
+
 
 hook_updatePlayerNormalStateForClimbing:
 lis r25, currentEyeSide@ha
@@ -404,21 +467,18 @@ lwz r25, currentEyeSide@l(r25)
 cmpwi r25, 1
 beq .+0x08 ; skip if right eye
 li r3, 0
-
-
 cmpwi r3, 0
 blr
 
-
-;0x02D149E0 = ba hook_updatePlayerNormalStateForClimbing
+;0x02D149E0 = bla hook_updatePlayerNormalStateForClimbing
 
 ; ======================================================
 ; ======================================================
 ; ======================================================
 
 setClimbingState:
-;li r25, 2
-lbz r25, 0x16E8(r30)
+li r25, 0
+;lbz r25, 0x16E8(r30)
 stb r25, 0x16E8(r30)
 blr
 0x02D5C67C = bla setClimbingState
@@ -431,6 +491,7 @@ scopedDeltaSetter_float2:
 0x037A5080 = actor_job_common_calcAI_andMore:
 
 0x02D149A0 = updatePlayerNormalStateForClimbing:
+0x02D164E8 = playerNormal_calc:
 
 strActor_job0_1:
 .string "job0_1"
@@ -472,16 +533,22 @@ lwz r3, 0x1C(r1)
 li r4, 0
 stb r4, 0x16E8(r3)
 
-; FOR PLAYER ALONE, run actor update HP
-lwz r3, 0x1C(r1)
-lwz r3, 0xE8(r3) ; load vtable of Actor
-lwz r3, 0x264(r3) ; load updateHP function pointer
-mtctr r3
-lis r4, scopedDeltaSetter_float2@ha
-addi r4, r4, scopedDeltaSetter_float2@l
-lwz r3, 0x1C(r1)
-bctrl ; ba updateHP
+; ; FOR PLAYER ALONE, run actor update HP
+; lwz r3, 0x1C(r1)
+; lwz r3, 0xE8(r3) ; load vtable of Actor
+; lwz r3, 0x264(r3) ; load updateHP function pointer
+; mtctr r3
+; lis r4, scopedDeltaSetter_float2@ha
+; addi r4, r4, scopedDeltaSetter_float2@l
+; lwz r3, 0x1C(r1)
+; bctrl ; ba updateHP
 
+;lis r4, playerNormal_calc@ha
+;addi r4, r4, playerNormal_calc@l
+;mtctr r4
+;lis r3, playerNormal@ha
+;lwz r3, playerNormal@l(r3)
+;bctrl ; ba playerNormal_calc
 
 lis r4, updatePlayerNormalStateForClimbing@ha
 addi r4, r4, updatePlayerNormalStateForClimbing@l
@@ -490,12 +557,12 @@ lis r3, playerNormal@ha
 lwz r3, playerNormal@l(r3)
 bctrl ; ba updatePlayerNormalStateForClimbing
 
-;    ; FOR PLAYER ALONE, run on the common calcAI_andMore on the LEFT EYE too.
-;    lis r4, actor_job_common_calcAI_andMore@ha
-;    addi r4, r4, actor_job_common_calcAI_andMore@l
-;    mtctr r4
-;    lwz r3, 0x1C(r1)
-;    bctrl ; ba actor_job_common_calcAI_andMore
+;   ; FOR PLAYER ALONE, run on the common calcAI_andMore on the LEFT EYE too.
+;   lis r4, actor_job_common_calcAI_andMore@ha
+;   addi r4, r4, actor_job_common_calcAI_andMore@l
+;   mtctr r4
+;   lwz r3, 0x1C(r1)
+;   bctrl ; ba actor_job_common_calcAI_andMore
 
 ;lis r4, real_actor_job0_1@ha
 ;addi r4, r4, real_actor_job0_1@l
