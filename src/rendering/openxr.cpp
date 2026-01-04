@@ -2,7 +2,7 @@
 #include "instance.h"
 
 static XrBool32 XR_DebugUtilsMessengerCallback(XrDebugUtilsMessageSeverityFlagsEXT messageSeverity, XrDebugUtilsMessageTypeFlagsEXT messageType, const XrDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData) {
-    //Log::print("[OpenXR Debug Utils] Function {}: {}", callbackData->functionName, callbackData->message);
+    Log::print<XR_DEBUGUTILS>("[XR Debug Utils] Function {}: {}", callbackData->functionName, callbackData->message);
     return XR_FALSE;
 }
 
@@ -37,7 +37,7 @@ OpenXR::OpenXR() {
         }
         else if (strcmp(extensionProperties.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
 #if defined(_DEBUG)
-            debugUtilsSupported = Log::isLogTypeEnabled<VERBOSE>();
+            debugUtilsSupported = Log::isLogTypeEnabled<XR_DEBUGUTILS>();
 #endif
         }
     }
@@ -53,10 +53,8 @@ OpenXR::OpenXR() {
     if (!timeConvSupported) {
         Log::print<WARNING>("OpenXR runtime doesn't support converting time from/to XrTime (XR_KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME). Not required, as of this version.");
     }
-    if (!debugUtilsSupported) {
-#if defined(_DEBUG)
+    if (!debugUtilsSupported && Log::isLogTypeEnabled<XR_DEBUGUTILS>()) {
         Log::print<INFO>("OpenXR runtime doesn't support debug utils (XR_EXT_DEBUG_UTILS)! Errors/debug information will no longer be able to be shown!");
-#endif
     }
 
     std::vector<const char*> enabledExtensions = { XR_KHR_D3D12_ENABLE_EXTENSION_NAME, XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME, XR_KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME };
@@ -131,7 +129,8 @@ OpenXR::OpenXR() {
 
     m_capabilities.isOculusLinkRuntime = std::string(properties.runtimeName) == "Oculus";
     Log::print<INFO>(" - Using Meta Quest Link OpenXR runtime: {}", m_capabilities.isOculusLinkRuntime ? "Yes" : "No");
-
+    
+    m_capabilities.isMetaSimulator = std::string(properties.runtimeName).find("Meta XR Simulator") != std::string::npos;
 }
 
 OpenXR::~OpenXR() {

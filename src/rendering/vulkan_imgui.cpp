@@ -1,6 +1,7 @@
 #include "instance.h"
 #include "vulkan.h"
 #include "hooking/entity_debugger.h"
+#include "utils/vulkan_utils.h"
 
 RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint32_t height, VkFormat format) {
     ImGui::CreateContext();
@@ -167,15 +168,12 @@ RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uin
         frame.hudFramebuffer = std::make_unique<VulkanTexture>(width, height, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false);
         frame.hudWithoutAlphaFramebuffer = std::make_unique<VulkanTexture>(width, height, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
-        frame.mainFramebuffer->vkPipelineBarrier(cb);
         frame.mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
         frame.mainFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
 
-        frame.hudFramebuffer->vkPipelineBarrier(cb);
         frame.hudFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
         frame.hudFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
 
-        frame.hudWithoutAlphaFramebuffer->vkPipelineBarrier(cb);
         frame.hudWithoutAlphaFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
         frame.hudWithoutAlphaFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
     }
@@ -234,6 +232,145 @@ RND_Renderer::ImGuiOverlay::~ImGuiOverlay() {
 }
 
 constexpr ImGuiWindowFlags FULLSCREEN_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+void DrawFPSOverlay(RND_Renderer* renderer) {
+    ImGui::SetNextWindowBgAlpha(0.6f);
+
+    // Use DisplaySize/FramebufferScale so positioning matches the same coordinate space as the overlay.
+    ImVec2 windowSize = ImGui::GetIO().DisplaySize;
+    windowSize.x = windowSize.x / ImGui::GetIO().DisplayFramebufferScale.x;
+    windowSize.y = windowSize.y / ImGui::GetIO().DisplayFramebufferScale.y;
+
+    const ImVec2 pad(10.0f, 10.0f);
+    ImGui::SetNextWindowPos(ImVec2(windowSize.x - pad.x, pad.y), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+
+    if (ImGui::Begin("AppMS Overlay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove)) {
+        const float predictedDisplayPeriodMs = (float)renderer->GetPredictedDisplayPeriodMs();
+        const float predictedHz = predictedDisplayPeriodMs > 0.0f ? (1000.0f / predictedDisplayPeriodMs) : 0.0f;
+
+        const float appMs = (float)renderer->GetLastFrameTimeMs(); // Total frame time (includes wait)
+        const float workMs = (float)renderer->GetLastFrameWorkTimeMs(); // GPU Work time only (excludes wait)
+        const float waitMs = (float)renderer->GetLastWaitTimeMs();
+        const float overheadMs = (float)renderer->GetLastOverheadMs();
+
+        // --- 2. Convert to FPS ---
+        const float appFps = appMs > 0.0f ? (1000.0f / appMs) : 0.0f;
+
+        // "Theoretical FPS": How fast you COULD run if you didn't have to wait for V-Sync/OpenXR
+        const float workFps = workMs > 0.0f ? (1000.0f / workMs) : 0.0f;
+
+        // Calculate percentage of the frame budget used (still useful in % terms)
+        const float workPct = predictedDisplayPeriodMs > 0.0f ? (workMs / predictedDisplayPeriodMs) * 100.0f : 0.0f;
+
+        // --- 3. Text Summary ---
+        ImGui::Text("Your headset is %.0f Hz", predictedHz);
+        ImGui::Text("Currently Running At %.1f FPS", appFps);
+        ImGui::Text("");
+        ImGui::Text("OpenXR waited %.1f ms so that it can interpolate/have low latency.", waitMs);
+        ImGui::Text("Theoretically, it'd run at %.1f FPS if that didn't matter", workFps);
+
+        if (predictedHz > 0.0f && workFps > 0.0f) {
+            auto rateForDivisor = [predictedHz](int divisor) -> double {
+                return divisor > 0 ? (predictedHz / (double)divisor) : 0.0;
+            };
+
+            auto chooseBestDivisor = [&](double fps) -> int {
+                // Pick the closest *supported* refresh divisor (1x, 1/2x, 1/3x, 1/4x).
+                int bestDiv = 1;
+                double bestErr = std::abs(fps - rateForDivisor(1));
+                for (int div = 2; div <= 4; ++div) {
+                    const double err = std::abs(fps - rateForDivisor(div));
+                    if (err < bestErr) {
+                        bestErr = err;
+                        bestDiv = div;
+                    }
+                }
+                return bestDiv;
+            };
+
+            // Use theoretical FPS (GPU work time) as the basis for which step we're closest to.
+            const int currentDiv = chooseBestDivisor(workFps);
+            const double currentTarget = rateForDivisor(currentDiv);
+            const int nextDiv = std::max(1, currentDiv - 1);
+            const double nextTarget = rateForDivisor(nextDiv);
+            const double missingNext = std::max(0.0, nextTarget - (double)workFps);
+
+            if (currentDiv == 1) {
+                ImGui::Text("Its reaching the full refresh rate you've set (%.0f hz)", currentTarget);
+                ImGui::Text("You've got ~%.1f FPS of headroom to spare", (float)std::max(0.0, (double)workFps - nextTarget));
+            }
+            else {
+                ImGui::Text("It is however able to reliably reach %.0f FPS (%.0f Hz / %d)", currentTarget, predictedHz, currentDiv);
+                ImGui::Text("You'd need to get %.1f FPS more to get it to switch to %.0f FPS", missingNext, nextTarget);
+            }
+        }
+
+        // --- 4. History Buffers (Storing FPS now) ---
+        static float history_app_fps[120] = {};
+        static float history_work_fps[120] = {};
+        static int offset = 0;
+
+        history_app_fps[offset] = appFps;
+        history_work_fps[offset] = workFps;
+        offset = (offset + 1) % 120;
+
+        // --- 5. Plotting ---
+        const double targetFps = predictedHz;
+        const double halfFps = predictedHz / 2.0;
+        const double thirdFps = predictedHz / 3.0;
+        const double fourthFps = predictedHz / 4.0;
+        if (ImPlot::BeginPlot("##Frametime", ImVec2(420, 150), ImPlotFlags_NoFrame | ImPlotFlags_NoTitle | ImPlotFlags_NoMouseText | ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect | ImPlotFlags_NoInputs)) {
+
+            // Switch Y-Axis label to FPS
+            ImPlot::SetupAxes(nullptr, "##FPS", ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoInitialFit);
+            ImPlot::SetupAxisLimits(ImAxis_X1, 0, 120, ImPlotCond_Always);
+
+            if (targetFps > 0.0f) {
+                ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, predictedHz * 1.5f, ImPlotCond_Always);
+
+                // 1. Target Refresh Rate (Green)
+                ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, 0.5f));
+                ImPlot::PlotInfLines("##Target", &targetFps, 1, ImPlotInfLinesFlags_Horizontal);
+                ImPlot::TagY(targetFps, ImVec4(0, 1, 0, 0.5f), "%.0f Hz", targetFps);
+
+                // 2. Half Rate (ASW/Reprojection threshold) (Yellow)
+                ImPlot::SetNextLineStyle(ImVec4(1, 1, 0, 0.5f));
+                ImPlot::PlotInfLines("##1/2 Rate", &halfFps, 1, ImPlotInfLinesFlags_Horizontal);
+                ImPlot::TagY(halfFps, ImVec4(1, 1, 0, 0.5f), "%.0f Hz", halfFps);
+
+                // 3. Third Rate (Red)
+                ImPlot::SetNextLineStyle(ImVec4(1, 0, 0, 0.5f));
+                ImPlot::PlotInfLines("##1/3 Rate", &thirdFps, 1, ImPlotInfLinesFlags_Horizontal);
+            }
+            else {
+                ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, 144.0, ImPlotCond_Always);
+            }
+
+            // --- Draw Graphs ---
+            // 1. Theoretical Max FPS (Work Time) - Purple/Pink
+            ImPlot::SetNextLineStyle(ImVec4(1.0f, 0.4f, 1.0f, 1.0f));
+            ImPlot::PlotLine("Theoretical Max", history_work_fps, 120, 1.0, 0.0, 0, offset);
+
+            // 2. Actual FPS (App Time) - Blue
+            // This represents what is actually hitting the screen (capped by Wait).
+            ImPlot::SetNextFillStyle(ImVec4(0.4f, 0.4f, 1.0f, 0.50f));
+            ImPlot::SetNextLineStyle(ImVec4(0.4f, 0.4f, 1.0f, 1.0f));
+            ImPlot::PlotShaded("Actual", history_app_fps, 120, 0.0, 1.0, 0.0, 0, offset);
+            ImPlot::PlotLine("##TotalLine", history_app_fps, 120, 1.0, 0.0, 0, offset);
+
+            // Current FPS Tag
+            if (appFps > 0.0f) {
+                const double currentFps = appFps;
+                ImPlot::SetNextLineStyle(ImVec4(1, 1, 1, 0.65f));
+                ImPlot::PlotInfLines("##Current", &currentFps, 1, ImPlotInfLinesFlags_Horizontal);
+                ImPlot::TagY(currentFps, ImVec4(1, 1, 1, 0.8f), "%.1f FPS", currentFps);
+            }
+
+            ImPlot::EndPlot();
+        }
+    }
+    ImGui::End();
+}
 
 void RND_Renderer::ImGuiOverlay::BeginFrame(long frameIdx, bool renderBackground) {
     ImGui_ImplVulkan_NewFrame();
@@ -347,41 +484,24 @@ void RND_Renderer::ImGuiOverlay::BeginFrame(long frameIdx, bool renderBackground
         VRManager::instance().Hooks->m_entityDebugger->DrawEntityInspector();
         VRManager::instance().Hooks->DrawDebugOverlays();
     }
+
+    if (m_showAppMS) {
+        DrawFPSOverlay(renderer);
+    }
 }
 
-void RND_Renderer::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio, long frameIdx, VkImageLayout srcLayout) {
-    // Log::print("Drawing 3D layer as background with aspect ratio {}, and isRendering3D {}", aspectRatio, VRManager::instance().XR->GetRenderer()->IsRendering3D());
-    auto* renderer = VRManager::instance().XR->GetRenderer();
-    auto& frame = renderer->GetFrame(frameIdx);
+void RND_Renderer::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio, long frameIdx) {
+    auto& frame = VRManager::instance().XR->GetRenderer()->GetFrame(frameIdx);
 
-    frame.mainFramebuffer->vkPipelineBarrier(cb);
-    frame.mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    // AMD GPU FIX: Pass the actual source layout for proper transitions
-    frame.mainFramebuffer->vkCopyFromImage(cb, srcImage, srcLayout);
-
-    frame.mainFramebuffer->vkPipelineBarrier(cb);
-    frame.mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
-
+    frame.mainFramebuffer->vkCopyFromImage(cb, srcImage);
     frame.mainFramebufferAspectRatio = aspectRatio;
 }
 
-void RND_Renderer::ImGuiOverlay::DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, long frameIdx, VkImageLayout srcLayout) {
-    auto* renderer = VRManager::instance().XR->GetRenderer();
-    auto& frame = renderer->GetFrame(frameIdx);
+void RND_Renderer::ImGuiOverlay::DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, long frameIdx) {
+    auto& frame = VRManager::instance().XR->GetRenderer()->GetFrame(frameIdx);
 
-    frame.hudFramebuffer->vkPipelineBarrier(cb);
-    frame.hudFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    // AMD GPU FIX: Pass the actual source layout for proper transitions
-    frame.hudFramebuffer->vkCopyFromImage(cb, srcImage, srcLayout);
-    frame.hudFramebuffer->vkPipelineBarrier(cb);
-    frame.hudFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    frame.hudWithoutAlphaFramebuffer->vkPipelineBarrier(cb);
-    frame.hudWithoutAlphaFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    // AMD GPU FIX: Pass the actual source layout for proper transitions
-    frame.hudWithoutAlphaFramebuffer->vkCopyFromImage(cb, srcImage, srcLayout);
-    frame.hudWithoutAlphaFramebuffer->vkPipelineBarrier(cb);
-    frame.hudWithoutAlphaFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    frame.hudFramebuffer->vkCopyFromImage(cb, srcImage);
+    frame.hudWithoutAlphaFramebuffer->vkCopyFromImage(cb, srcImage);
 }
 
 void RND_Renderer::ImGuiOverlay::Render() {
@@ -428,6 +548,13 @@ void RND_Renderer::ImGuiOverlay::Update() {
 
     // update mouse controls and keyboard input
     bool isWindowFocused = m_cemuTopWindow == GetForegroundWindow();
+
+    bool isF3Pressed = GetKeyState(VK_F3) & 0x8000;
+    if (isF3Pressed && !m_wasF3Pressed) {
+        m_showAppMS = !m_showAppMS;
+    }
+    m_wasF3Pressed = isF3Pressed;
+
     ImGui::GetIO().AddFocusEvent(isWindowFocused);
     ImGui::GetIO().AddMousePosEvent((float)p.x, (float)p.y);
 
@@ -442,8 +569,6 @@ void RND_Renderer::ImGuiOverlay::DrawAndCopyToImage(VkCommandBuffer cb, VkImage 
     auto& frame = renderer->GetFrame(frameIdx);
 
     // transition framebuffer to color attachment
-    frame.imguiFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    frame.imguiFramebuffer->vkPipelineBarrier(cb);
     frame.imguiFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
 
     // start render pass
@@ -466,9 +591,8 @@ void RND_Renderer::ImGuiOverlay::DrawAndCopyToImage(VkCommandBuffer cb, VkImage 
     // end render pass
     dispatch->CmdEndRenderPass(cb);
 
-    // transition framebuffer to now be a transfer source
+    // copy rendered imgui to destination image
     frame.imguiFramebuffer->vkPipelineBarrier(cb);
-    frame.imguiFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
     frame.imguiFramebuffer->vkCopyToImage(cb, destImage);
     frame.imguiFramebuffer->vkPipelineBarrier(cb);
 }

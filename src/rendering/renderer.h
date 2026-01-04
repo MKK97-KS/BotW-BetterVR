@@ -85,6 +85,12 @@ public:
         return ToMat4(middlePos, middleOri);
     };
 
+    double GetLastFrameWorkTimeMs() const { return m_lastFrameWorkTimeMs; }
+    double GetLastWaitTimeMs() const { return m_lastWaitTimeMs; }
+    double GetLastFrameTimeMs() const { return m_lastFrameTimeMs; }
+    double GetPredictedDisplayPeriodMs() const { return m_predictedDisplayPeriodMs; }
+    double GetLastOverheadMs() const { return m_lastOverheadMs; }
+
     void On3DColorCopied(OpenXR::EyeSide side, long frameIdx) {
         m_renderFrames[frameIdx].copiedColor[side] = true;
         if (!m_renderFrames[frameIdx].views.has_value()) m_renderFrames[frameIdx].views = m_currViews;
@@ -104,11 +110,11 @@ public:
 
     class Layer3D {
     public:
-        explicit Layer3D(VkExtent2D extent);
+        explicit Layer3D(VkExtent2D inputRes, VkExtent2D outputRes);
         ~Layer3D();
 
-        SharedTexture* CopyColorToLayer(OpenXR::EyeSide side, VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx, VkImageLayout srcImageLayout);
-        SharedTexture* CopyDepthToLayer(OpenXR::EyeSide side, VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx, VkImageLayout srcImageLayout);
+        SharedTexture* CopyColorToLayer(OpenXR::EyeSide side, VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx);
+        SharedTexture* CopyDepthToLayer(OpenXR::EyeSide side, VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx);
         void PrepareRendering(OpenXR::EyeSide side);
         void StartRendering();
         void Render(OpenXR::EyeSide side, long frameIdx);
@@ -133,10 +139,10 @@ public:
 
     class Layer2D {
     public:
-        explicit Layer2D(VkExtent2D extent);
+        explicit Layer2D(VkExtent2D inputRes, VkExtent2D outputRes);
         ~Layer2D();
 
-        SharedTexture* CopyColorToLayer(VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx, VkImageLayout srcImageLayout);
+        SharedTexture* CopyColorToLayer(VkCommandBuffer copyCmdBuffer, VkImage image, long frameIdx);
         // AMD GPU FIX: With incrementing values, Vulkan signals odd values (1,3,5...), D3D12 signals even values (2,4,6...)
         // Texture is ready for D3D12 when Vulkan has signaled (odd value > 0)
         bool IsTextureReady(long frameIdx) const {
@@ -166,9 +172,8 @@ public:
         bool ShouldBlockGameInput() { return ImGui::GetIO().WantCaptureKeyboard; }
 
         void BeginFrame(long frameIdx, bool renderBackground);
-        // AMD GPU FIX: Added srcLayout parameter to specify the actual source image layout
-        static void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio, long frameIdx, VkImageLayout srcLayout);
-        static void DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, long frameIdx, VkImageLayout srcLayout);
+        static void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio, long frameIdx);
+        static void DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, long frameIdx);
         void Update();
         void Render();
         void DrawAndCopyToImage(VkCommandBuffer cb, VkImage destImage, long frameIdx);
@@ -181,6 +186,9 @@ public:
         HWND m_cemuRenderWindow = nullptr;
 
         VkSampler m_sampler = VK_NULL_HANDLE;
+
+        bool m_showAppMS = false;
+        bool m_wasF3Pressed = false;
     };
 
     std::unique_ptr<Layer3D> m_layer3D;
@@ -205,4 +213,17 @@ protected:
 
     std::atomic_bool m_isInitialized = false;
     std::atomic_bool m_presented2DLastFrame = false;
+
+    // Full-frame timing derived from OpenXR timestamps (XrTime is in nanoseconds)
+    XrTime m_lastPredictedDisplayTime = 0;
+
+    std::chrono::high_resolution_clock::time_point m_frameStartTime;
+
+    double m_lastFrameWorkTimeMs = 0.0;
+    double m_lastWaitTimeMs = 0.0;
+
+    // Derived from OpenXR timestamps
+    double m_lastFrameTimeMs = 0.0;
+    double m_predictedDisplayPeriodMs = 0.0;
+    double m_lastOverheadMs = 0.0;
 };

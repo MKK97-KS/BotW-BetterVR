@@ -17,7 +17,7 @@ public:
     void vkCopyToImage(VkCommandBuffer cmdBuffer, VkImage dstImage);
     // AMD GPU FIX: srcLayout parameter to specify the actual source image layout
     // If srcLayout is TRANSFER_SRC_OPTIMAL, assume caller has already transitioned and skip internal transitions
-    void vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcLayout = VK_IMAGE_LAYOUT_GENERAL);
+    void vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage);
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }
     VkFormat GetFormat() const { return m_vkFormat; }
@@ -113,7 +113,7 @@ public:
     ~SharedTexture() override;
 
     // srcImageLayout: the ACTUAL current layout of srcImage (e.g., from Cemu's CmdClearColorImage hook)
-    void CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_GENERAL);
+    void CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage);
     const VkSemaphore& GetSemaphore() const { return m_vkSemaphore; }
 
     // AMD GPU FIX: Timeline semaphores require strictly increasing values.

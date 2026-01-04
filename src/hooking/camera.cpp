@@ -561,23 +561,10 @@ void CemuHooks::hook_GetEventName(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
     uint32_t isEventActive = hCPU->gpr[3];
-    uint32_t ppcAddress = hCPU->gpr[4];
+    uint32_t eventNamePtr = hCPU->gpr[4];
 
     if (isEventActive) {
-        // Validate PPC address is in valid game memory range
-        if (ppcAddress < 0x10000000 || ppcAddress > 0x50000000) {
-            return;
-        }
-
-        const char* eventNamePtr = (const char*)(ppcAddress + s_memoryBaseAddress);
-
-        // Validate the string starts with a printable ASCII character
-        unsigned char firstChar = static_cast<unsigned char>(eventNamePtr[0]);
-        if (firstChar < 0x20 || firstChar > 0x7E) {
-            return;
-        }
-
-        std::string eventName = std::string(eventNamePtr);
+        std::string eventName = std::string((char*)s_memoryBaseAddress + eventNamePtr);
         if (s_currentEvent == eventName) {
             return;
         }

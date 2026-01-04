@@ -21,6 +21,7 @@ public:
         bool supportsPositional;
         bool supportsMutatableFOV;
         bool isOculusLinkRuntime;
+        bool isMetaSimulator;
     } m_capabilities = {};
 
     union InputState {

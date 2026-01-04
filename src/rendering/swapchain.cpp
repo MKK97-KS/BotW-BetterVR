@@ -60,6 +60,7 @@ ID3D12Resource* Swapchain<T>::StartRendering() {
     if (XrResult waitResult = xrWaitSwapchainImage(m_swapchain, &waitSwapchainInfo); waitResult == XR_TIMEOUT_EXPIRED || XR_FAILED(waitResult)) {
         checkXRResult(waitResult, "Failed to wait for swapchain image!");
     }
+
     return m_swapchainTextures[m_swapchainImageIdx].Get();
 }
 

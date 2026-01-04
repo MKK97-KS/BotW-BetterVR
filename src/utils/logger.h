@@ -205,6 +205,7 @@ enum class LogType {
     INTEROP,
     CONTROLS,
     PPC,
+    XR_DEBUGUTILS,
 
     // generic types
     INFO,

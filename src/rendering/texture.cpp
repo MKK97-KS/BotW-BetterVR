@@ -24,7 +24,9 @@ VkImageAspectFlags BaseVulkanTexture::GetAspectMask() const {
 }
 
 void BaseVulkanTexture::vkTransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout) {
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
     VulkanUtils::TransitionLayout(cmdBuffer, m_vkImage, m_vkCurrLayout, newLayout, GetAspectMask());
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
     m_vkCurrLayout = newLayout;
 }
 
@@ -68,8 +70,6 @@ void BaseVulkanTexture::vkClear(VkCommandBuffer cmdBuffer, VkClearColorValue col
         return;
     }
 
-    // AMD GPU FIX: Transition to GENERAL if not already in a valid clear layout
-    // CmdClearColorImage requires GENERAL or TRANSFER_DST_OPTIMAL
     if (m_vkCurrLayout != VK_IMAGE_LAYOUT_GENERAL && m_vkCurrLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         VulkanUtils::TransitionLayout(cmdBuffer, m_vkImage, m_vkCurrLayout, VK_IMAGE_LAYOUT_GENERAL);
         m_vkCurrLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -83,7 +83,9 @@ void BaseVulkanTexture::vkClear(VkCommandBuffer cmdBuffer, VkClearColorValue col
         .layerCount = VK_REMAINING_ARRAY_LAYERS
     };
 
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
     dispatch->CmdClearColorImage(cmdBuffer, m_vkImage, m_vkCurrLayout, &color, 1, &range);
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
 }
 
 void BaseVulkanTexture::vkClearDepth(VkCommandBuffer cmdBuffer, float depth, uint32_t stencil) {
@@ -117,41 +119,10 @@ void BaseVulkanTexture::vkClearDepth(VkCommandBuffer cmdBuffer, float depth, uin
     dispatch->CmdClearDepthStencilImage(cmdBuffer, m_vkImage, m_vkCurrLayout, &clearValue, 1, &range);
 }
 
-void BaseVulkanTexture::vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcLayout) {
+void BaseVulkanTexture::vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage) {
     auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+
     VkImageAspectFlags aspectMask = GetAspectMask();
-
-    // AMD GPU FIX: If srcLayout is already TRANSFER_SRC_OPTIMAL, the caller has managed the transition
-    // (e.g., via ensureSrcLayout in framebuffer.cpp). Skip internal transitions to avoid conflicts.
-    bool callerManagedLayout = (srcLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-    if (!callerManagedLayout) {
-        // Pre-copy barrier: transition source to TRANSFER_SRC_OPTIMAL
-        VkImageMemoryBarrier2 srcPreBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        srcPreBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-        srcPreBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-        srcPreBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        srcPreBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-        srcPreBarrier.oldLayout = srcLayout;
-        srcPreBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        srcPreBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcPreBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcPreBarrier.image = srcImage;
-        // AMD GPU FIX: Use VK_REMAINING to cover all subresources
-        srcPreBarrier.subresourceRange = {
-            .aspectMask = aspectMask,
-            .baseMipLevel = 0,
-            .levelCount = VK_REMAINING_MIP_LEVELS,
-            .baseArrayLayer = 0,
-            .layerCount = VK_REMAINING_ARRAY_LAYERS
-        };
-
-        VkDependencyInfo preBarrierDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        preBarrierDep.imageMemoryBarrierCount = 1;
-        preBarrierDep.pImageMemoryBarriers = &srcPreBarrier;
-        dispatch->CmdPipelineBarrier2(cmdBuffer, &preBarrierDep);
-    }
-
     const VkImageCopy region = {
         .srcSubresource = { aspectMask, 0, 0, 1 },
         .srcOffset = { 0, 0, 0 },
@@ -164,34 +135,9 @@ void BaseVulkanTexture::vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcIm
         }
     };
 
-    dispatch->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    if (!callerManagedLayout) {
-        // Post-copy barrier: transition source back to original layout
-        VkImageMemoryBarrier2 srcPostBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        srcPostBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        srcPostBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-        srcPostBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-        srcPostBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-        srcPostBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        srcPostBarrier.newLayout = srcLayout;
-        srcPostBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcPostBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcPostBarrier.image = srcImage;
-        // AMD GPU FIX: Use VK_REMAINING to cover all subresources
-        srcPostBarrier.subresourceRange = {
-            .aspectMask = aspectMask,
-            .baseMipLevel = 0,
-            .levelCount = VK_REMAINING_MIP_LEVELS,
-            .baseArrayLayer = 0,
-            .layerCount = VK_REMAINING_ARRAY_LAYERS
-        };
-
-        VkDependencyInfo postBarrierDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        postBarrierDep.imageMemoryBarrierCount = 1;
-        postBarrierDep.pImageMemoryBarriers = &srcPostBarrier;
-        dispatch->CmdPipelineBarrier2(cmdBuffer, &postBarrierDep);
-    }
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
+    dispatch->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_GENERAL, m_vkImage, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
 }
 
 VulkanTexture::VulkanTexture(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, bool disableAlphaThroughSwizzling): BaseVulkanTexture(width, height, format) {
@@ -250,9 +196,6 @@ VulkanTexture::VulkanTexture(uint32_t width, uint32_t height, VkFormat format, V
 }
 
 VulkanTexture::~VulkanTexture() {
-    // AMD GPU FIX: Only destroy the image view here.
-    // DO NOT destroy m_vkImage/m_vkMemory - BaseVulkanTexture::~BaseVulkanTexture() handles them.
-    // Double-destroy was causing undefined behavior and AMD-specific crashes.
     if (m_vkImageView != VK_NULL_HANDLE) {
         VRManager::instance().VK->GetDeviceDispatch()->DestroyImageView(VRManager::instance().VK->GetDevice(), m_vkImageView, nullptr);
         m_vkImageView = VK_NULL_HANDLE;
@@ -278,13 +221,7 @@ VulkanFramebuffer::~VulkanFramebuffer() {
 }
 
 Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Format(format) {
-    // Use typeless format for depth resources to allow both DSV and SRV creation
-    // This is required for AMD compatibility
-    DXGI_FORMAT resourceFormat = D3D12Utils::IsDepthFormat(format) ? D3D12Utils::ToTypelessDepthFormat(format) : format;
-
-    // AMD GPU FIX: Shared resources require:
-    // 1. 64KB alignment (D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) for AMD interop
-    // 2. ALLOW_SIMULTANEOUS_ACCESS for non-depth to disable DCC compression so Vulkan can read
+    // use D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS to disable compression
     D3D12_RESOURCE_FLAGS flags = D3D12Utils::IsDepthFormat(format)
         ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
         : (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS);
@@ -292,12 +229,12 @@ Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Fo
     // clang-format off
     D3D12_RESOURCE_DESC textureDesc = {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-        .Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,  // AMD GPU FIX: Force 64KB alignment
+        .Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, // supposedly needed for AMD
         .Width = width,
         .Height = height,
         .DepthOrArraySize = 1,
         .MipLevels = 1,
-        .Format = resourceFormat,
+        .Format = D3D12Utils::IsDepthFormat(format) ? D3D12Utils::ToTypelessDepthFormat(format) : format, // use typeless for depth formats
         .SampleDesc = {
             .Count = 1,
             .Quality = 0
@@ -325,20 +262,20 @@ Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Fo
 void Texture::d3d12SignalFence(uint64_t value) {
     // Check current fence value before signaling
     uint64_t currentValue = m_d3d12Fence->GetCompletedValue();
+
     static uint32_t s_d3d12SignalCount = 0;
     s_d3d12SignalCount++;
     if (s_d3d12SignalCount % 500 == 0) {
         Log::print<INTEROP>("D3D12 Signal #{}: texture={}, current={}, signaling to {}", s_d3d12SignalCount, (void*)this, currentValue, value);
     }
+
     SetLastSignalledValue(value);
-    HRESULT hr = VRManager::instance().D3D12->GetCommandQueue()->Signal(m_d3d12Fence.Get(), value);
-    if (FAILED(hr)) {
-        Log::print<ERROR>("D3D12 Signal FAILED! hr=0x{:X}, texture={}, value={}", (uint32_t)hr, (void*)this, value);
-    }
+    checkHResult(VRManager::instance().D3D12->GetCommandQueue()->Signal(m_d3d12Fence.Get(), value), "D3D12 Signal FAILED!");
 }
 
 void Texture::d3d12WaitForFence(uint64_t value) {
     uint64_t currentValue = m_d3d12Fence->GetCompletedValue();
+
     static uint32_t s_d3d12WaitCount = 0;
     s_d3d12WaitCount++;
     if (s_d3d12WaitCount % 500 == 0) {
@@ -347,11 +284,9 @@ void Texture::d3d12WaitForFence(uint64_t value) {
     if (currentValue == UINT64_MAX) {
         Log::print<ERROR>("D3D12 fence in ERROR state! texture={}", (void*)this);
     }
+
     SetLastAwaitedValue(value);
-    HRESULT hr = VRManager::instance().D3D12->GetCommandQueue()->Wait(m_d3d12Fence.Get(), value);
-    if (FAILED(hr)) {
-        Log::print<ERROR>("D3D12 Wait FAILED! hr=0x{:X}, texture={}, value={}", (uint32_t)hr, (void*)this, value);
-    }
+    checkHResult(VRManager::instance().D3D12->GetCommandQueue()->Wait(m_d3d12Fence.Get(), value), "D3D12 Wait FAILED!");
 }
 
 Texture::~Texture() {
@@ -362,7 +297,6 @@ Texture::~Texture() {
 }
 
 void Texture::d3d12TransitionLayout(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES state) {
-    // AMD GPU FIX: Skip redundant transitions - transitioning to same state is invalid
     if (m_currState == state) {
         return;
     }
@@ -463,17 +397,12 @@ SharedTexture::~SharedTexture() {
         VRManager::instance().VK->GetDeviceDispatch()->DestroySemaphore(VRManager::instance().VK->GetDevice(), m_vkSemaphore, nullptr);
 }
 
-void SharedTexture::CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout) {
+void SharedTexture::CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage) {
     static uint32_t s_copyCount = 0;
     s_copyCount++;
 
     auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
-    // AMD GPU FIX: Use GetAspectMask() from Vulkan format, NOT D3D12 format detection.
-    // D3D12 depth resources are created as typeless (e.g., DXGI_FORMAT_R32_TYPELESS),
-    // which would incorrectly return false for IsDepthFormat().
-    VkImageAspectFlags aspectMask = GetAspectMask();
 
-    // Validate state before copy
     if (srcImage == VK_NULL_HANDLE) {
         Log::print<ERROR>("CopyFromVkImage #{}: srcImage is NULL!", s_copyCount);
         return;
@@ -483,74 +412,12 @@ void SharedTexture::CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage,
         return;
     }
 
-    // AMD GPU FIX: If srcImageLayout is already TRANSFER_SRC_OPTIMAL, the caller has managed the transition
-    // (e.g., via ensureSrcLayout in framebuffer.cpp). Skip source transitions to avoid layout conflicts.
-    bool callerManagedLayout = (srcImageLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-    // Log every 500 copies for debugging
     if (s_copyCount % 500 == 0) {
         auto desc = this->m_d3d12Texture->GetDesc();
-        Log::print<INTEROP>("CopyFromVkImage #{}: src={}, dst={}, size={}x{}, srcLayout={}, dstLayout={}, callerManaged={}",
-            s_copyCount, (void*)srcImage, (void*)this->m_vkImage,
-            desc.Width, desc.Height, (int)srcImageLayout, (int)m_vkCurrLayout, callerManagedLayout);
+        Log::print<INTEROP>("CopyFromVkImage #{}: src={}, dst={}, size={}x{}", s_copyCount, (void*)srcImage, (void*)this->m_vkImage, desc.Width, desc.Height);
     }
 
-    // Pre-copy barrier: destination always needs transition, source only if not caller-managed
-    VkImageMemoryBarrier2 dstBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-    dstBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    dstBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
-    dstBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-    dstBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-    dstBarrier.oldLayout = m_vkCurrLayout;
-    dstBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    dstBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    dstBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    dstBarrier.image = this->m_vkImage;
-    // AMD GPU FIX: Use VK_REMAINING to cover all subresources
-    dstBarrier.subresourceRange = {
-        .aspectMask = aspectMask,
-        .baseMipLevel = 0,
-        .levelCount = VK_REMAINING_MIP_LEVELS,
-        .baseArrayLayer = 0,
-        .layerCount = VK_REMAINING_ARRAY_LAYERS
-    };
-
-    if (callerManagedLayout) {
-        // Only transition destination
-        VkDependencyInfo preCopyDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        preCopyDep.imageMemoryBarrierCount = 1;
-        preCopyDep.pImageMemoryBarriers = &dstBarrier;
-        dispatch->CmdPipelineBarrier2(cmdBuffer, &preCopyDep);
-    } else {
-        // Transition both source and destination
-        VkImageMemoryBarrier2 srcBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        srcBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-        srcBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-        srcBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        srcBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-        srcBarrier.oldLayout = srcImageLayout;
-        srcBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        srcBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcBarrier.image = srcImage;
-        // AMD GPU FIX: Use VK_REMAINING to cover all subresources
-        srcBarrier.subresourceRange = {
-            .aspectMask = aspectMask,
-            .baseMipLevel = 0,
-            .levelCount = VK_REMAINING_MIP_LEVELS,
-            .baseArrayLayer = 0,
-            .layerCount = VK_REMAINING_ARRAY_LAYERS
-        };
-
-        VkImageMemoryBarrier2 barriers[2] = { srcBarrier, dstBarrier };
-        VkDependencyInfo preCopyDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        preCopyDep.imageMemoryBarrierCount = 2;
-        preCopyDep.pImageMemoryBarriers = barriers;
-        dispatch->CmdPipelineBarrier2(cmdBuffer, &preCopyDep);
-    }
-
-    m_vkCurrLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-
+    VkImageAspectFlags aspectMask = GetAspectMask();
     VkImageCopy copyRegion = {
         .srcSubresource = { aspectMask, 0, 0, 1 },
         .srcOffset = { 0, 0, 0 },
@@ -560,61 +427,7 @@ void SharedTexture::CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage,
     };
 
     // Copy using the correct layouts
-    dispatch->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, this->m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
-
-    // Post-copy barrier: destination always transitions to GENERAL, source only if not caller-managed
-    VkImageMemoryBarrier2 dstPostBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-    dstPostBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-    dstPostBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-    dstPostBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    dstPostBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
-    dstPostBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    dstPostBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    dstPostBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    dstPostBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    dstPostBarrier.image = this->m_vkImage;
-    // AMD GPU FIX: Use VK_REMAINING to cover all subresources
-    dstPostBarrier.subresourceRange = {
-        .aspectMask = aspectMask,
-        .baseMipLevel = 0,
-        .levelCount = VK_REMAINING_MIP_LEVELS,
-        .baseArrayLayer = 0,
-        .layerCount = VK_REMAINING_ARRAY_LAYERS
-    };
-
-    if (callerManagedLayout) {
-        // Only transition destination - source stays in TRANSFER_SRC_OPTIMAL for caller to restore
-        VkDependencyInfo postCopyDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        postCopyDep.imageMemoryBarrierCount = 1;
-        postCopyDep.pImageMemoryBarriers = &dstPostBarrier;
-        dispatch->CmdPipelineBarrier2(cmdBuffer, &postCopyDep);
-    } else {
-        // Transition both source and destination
-        VkImageMemoryBarrier2 srcPostBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        srcPostBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        srcPostBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-        srcPostBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-        srcPostBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-        srcPostBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        srcPostBarrier.newLayout = srcImageLayout;  // Restore to ORIGINAL layout for Cemu
-        srcPostBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcPostBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        srcPostBarrier.image = srcImage;
-        // AMD GPU FIX: Use VK_REMAINING to cover all subresources
-        srcPostBarrier.subresourceRange = {
-            .aspectMask = aspectMask,
-            .baseMipLevel = 0,
-            .levelCount = VK_REMAINING_MIP_LEVELS,
-            .baseArrayLayer = 0,
-            .layerCount = VK_REMAINING_ARRAY_LAYERS
-        };
-
-        VkImageMemoryBarrier2 postBarriers[2] = { srcPostBarrier, dstPostBarrier };
-        VkDependencyInfo postCopyDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        postCopyDep.imageMemoryBarrierCount = 2;
-        postCopyDep.pImageMemoryBarriers = postBarriers;
-        dispatch->CmdPipelineBarrier2(cmdBuffer, &postCopyDep);
-    }
-
-    m_vkCurrLayout = VK_IMAGE_LAYOUT_GENERAL;
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
+    dispatch->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_GENERAL, this->m_vkImage, VK_IMAGE_LAYOUT_GENERAL, 1, &copyRegion);
+    VulkanUtils::DebugPipelineBarrier(cmdBuffer);
 }
