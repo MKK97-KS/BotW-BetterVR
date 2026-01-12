@@ -19,6 +19,7 @@ public:
         s_memoryBaseAddress = (uint64_t)memory_getBase();
         checkAssert(s_memoryBaseAddress != 0, "Failed to get memory base address of Cemu process!");
 
+        InitWindowHandles();
 
         osLib_registerHLEFunction("coreinit", "hook_UpdateSettings", &hook_UpdateSettings);
 
@@ -71,7 +72,10 @@ public:
     };
 
     static data_VRSettingsIn GetSettings();
-    static uint64_t GetMemoryBaseAddress() { return s_memoryBaseAddress; }    
+
+    static HWND m_cemuTopWindow;
+    static HWND m_cemuRenderWindow;
+    static uint64_t s_memoryBaseAddress;
 
     std::unique_ptr<class EntityDebugger> m_entityDebugger;
     static std::array<class WeaponMotionAnalyser, 2> m_motionAnalyzers;
@@ -185,10 +189,10 @@ private:
     memory_getBasePtr_t memory_getBase;
     gameMeta_getTitleIdPtr_t gameMeta_getTitleId;
 
-    static uint64_t s_memoryBaseAddress;
     static std::atomic_uint32_t s_framesSinceLastCameraUpdate;
 
     static bool IsScreenOpen(ScreenId screen);
+    static void InitWindowHandles();
     static void hook_UpdateSettings(PPCInterpreter_t* hCPU);
 
     // Actor Hooks

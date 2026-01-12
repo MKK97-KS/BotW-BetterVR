@@ -731,6 +731,7 @@ void OpenXR::ProcessEvents() {
             case XR_SESSION_STATE_STOPPING:
                 Log::print<VERBOSE>("OpenXR has indicated that the session should be ended!");
                 //this->m_renderer.reset();
+                PostMessage(CemuHooks::m_cemuTopWindow, WM_CLOSE, 0, 0);
                 break;
             case XR_SESSION_STATE_EXITING:
                 Log::print<VERBOSE>("OpenXR has indicated that the session should be destroyed!");

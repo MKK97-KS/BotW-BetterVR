@@ -182,9 +182,6 @@ public:
         VkDescriptorPool m_descriptorPool;
         VkRenderPass m_renderPass;
 
-        HWND m_cemuTopWindow = nullptr;
-        HWND m_cemuRenderWindow = nullptr;
-
         VkSampler m_sampler = VK_NULL_HANDLE;
 
         uint8_t m_showAppMS = 0;

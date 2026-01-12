@@ -128,40 +128,6 @@ RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uin
     Log::print<VERBOSE>("Initializing font textures for ImGui...");
     ImGui_ImplVulkan_CreateFontsTexture();
 
-    // find HWND that starts with Cemu in its title
-    struct EnumWindowsData {
-        DWORD cemuPid;
-        HWND outHwnd;
-    } enumData = { .cemuPid = GetCurrentProcessId(), .outHwnd = NULL };
-
-    EnumWindows([](HWND iteratedHwnd, LPARAM data) -> BOOL {
-        EnumWindowsData* enumData = (EnumWindowsData*)data;
-        DWORD currPid;
-        GetWindowThreadProcessId(iteratedHwnd, &currPid);
-        if (currPid == enumData->cemuPid) {
-            constexpr size_t bufSize = 256;
-            wchar_t buf[bufSize];
-            GetWindowTextW(iteratedHwnd, buf, bufSize);
-            if (wcsstr(buf, L"Cemu") != nullptr) {
-                enumData->outHwnd = iteratedHwnd;
-                return FALSE;
-            }
-        }
-        return TRUE;
-    }, (LPARAM)&enumData);
-    m_cemuTopWindow = enumData.outHwnd;
-
-    // find the most nested child window since that's the rendering window
-    HWND iteratedHwnd = m_cemuTopWindow;
-    while (true) {
-        HWND nextIteratedHwnd = FindWindowExW(iteratedHwnd, NULL, NULL, NULL);
-        if (nextIteratedHwnd == NULL) {
-            break;
-        }
-        iteratedHwnd = nextIteratedHwnd;
-    }
-    m_cemuRenderWindow = iteratedHwnd;
-
     for (int i = 0; i < 2; ++i) {
         auto& frame = renderer->GetFrame(i);
         frame.mainFramebuffer = std::make_unique<VulkanTexture>(width, height, VK_FORMAT_B10G11R11_UFLOAT_PACK32, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false);
@@ -510,7 +476,7 @@ void RND_Renderer::ImGuiOverlay::Update() {
     POINT p;
     GetCursorPos(&p);
 
-    ScreenToClient(m_cemuRenderWindow, &p);
+    ScreenToClient(CemuHooks::m_cemuRenderWindow, &p);
 
     // scale mouse position with the texture size
     uint32_t framebufferWidth = (uint32_t)ImGui::GetIO().DisplaySize.x;
@@ -520,7 +486,7 @@ void RND_Renderer::ImGuiOverlay::Update() {
 
     // calculate how many client side pixels are used on the border since its not a 16:9 aspect ratio
     RECT rect;
-    GetClientRect(m_cemuRenderWindow, &rect);
+    GetClientRect(CemuHooks::m_cemuRenderWindow, &rect);
     uint32_t nonCenteredWindowWidth = rect.right - rect.left;
     uint32_t nonCenteredWindowHeight = rect.bottom - rect.top;
 
@@ -545,7 +511,7 @@ void RND_Renderer::ImGuiOverlay::Update() {
     ImGui::GetIO().DisplayFramebufferScale = ImVec2((float)framebufferWidth / (float)windowWidth, (float)framebufferHeight / (float)windowHeight);
 
     // update mouse controls and keyboard input
-    bool isWindowFocused = m_cemuTopWindow == GetForegroundWindow();
+    bool isWindowFocused = CemuHooks::m_cemuTopWindow == GetForegroundWindow();
 
     bool isF3Pressed = GetKeyState(VK_F3) & 0x8000;
     if (isF3Pressed && !m_wasF3Pressed) {

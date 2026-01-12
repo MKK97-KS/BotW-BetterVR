@@ -43,7 +43,7 @@ data_TableOfCutsceneEventsSettings:
 .string "BalladOfHeroRito,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "BalladOfHeroZora,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; Contains a ton of stuff. Hard to tell.
 .string "bf2_collabo,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "BloodyMoonRelief,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "BloodyMoonRelief,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Bottle_Mes,FP_ON,PAN_ON,HND_OFF,CTRL_OFF"
 .string "Carnivorous_Boy,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "CarryingBlueFireEXMini,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
@@ -109,7 +109,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo041_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Terminal access processing subflow
 .string "Demo042_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Slate menu - First time open
 .string "Demo042_1,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Slate menu - First time close
-.string "Demo043_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Gyro terminal operation
+.string "Demo043_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Gyro terminal operation
 .string "Demo044_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Relics terminal operation
 .string "Demo045_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Great Fairy: Initial Encounter
 .string "Demo046_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Dyeing Demo
@@ -144,7 +144,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo327_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Goron's Rock Carrying] Demonstration of cooking roast rock and son's eating and destroying the rock | There's like a whole cooking scene with multiple cuts. Probably not fit for VR: https://youtu.be/vSbd99LkE9o?t=508
 .string "Demo330_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Snaarathi Race] Demo at the start of the race
 .string "Demo330_1,FP_ON,PAN_OFF,HND_OFF,CTRL_ON" ; name: [Snaarathi Race] Demo when I gave a new record
-.string "Demo331_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: [Do not step on flowers] Flower lady getting angry | https://www.youtube.com/watch?v=Tx0sx6M-nLI
+.string "Demo331_0,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Do not step on flowers] Flower lady getting angry | https://www.youtube.com/watch?v=Tx0sx6M-nLI
 .string "Demo333_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Stationary Guardian activation demo | Zoom-ins on stationary guardians on the great plateau https://www.youtube.com/watch?v=FeGfQ5zN5ZM  By default, this makes the camera go absolutely crazy, often spinning rapidly and flying up into the sky. Both in first and third person mode.
 .string "Demo344_0,FP_ON,PAN_OFF,HND_OFF,CTRL_ON" ; name: Vah Ruta before scream demo | TODO: Could check out whether calling the demo of the beast rising from the ground switches the demo id that the mod receives, or whether it's separate.  You talk to the king of the Zora domain, and a bunch of advisors. Link stays put in one place. It calls another Demo that shows the elephant rising from the water and roaring: https://www.youtube.com/watch?v=nQkO5UeoJm0
 .string "Demo344_1,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Vah Ruta last attack demo
@@ -170,7 +170,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Demo370_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: Wedding demo
 .string "Demo378_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: [Sneak | Sneaking into the voe-forbidden area
 .string "Demo378_1,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Sneak | Link gets the Voe-cloak clothing at the bazaar
-.string "Demo380_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: First meeting with Impa
+.string "Demo380_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: First meeting with Impa
 .string "Demo401_0,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; name: [Go to Zora Village] Encounter with Prince Sidon Demo
 .string "Demo401_1,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; name: [Go to Zora Village] Prince Sidon's support
 .string "Demo480_0,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF" ; name: Silver piece (freeing dragon from Malice demo)
@@ -258,7 +258,7 @@ data_TableOfCutsceneEventsSettings:
 .string "DisplayShop,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "DLC_TwnObj_HatenoLinkHouse_Check_Photo,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
 .string "DokuroEye,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "DontDamageFlower,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; https://www.youtube.com/watch?v=lT3MW6eCHL4
+.string "DontDamageFlower,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; https://www.youtube.com/watch?v=lT3MW6eCHL4
 .string "Drag_Hero,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; NPC standing outside of Gerudo town giving you hints about where to find the cross-dresser
 .string "Dummy,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Electric_Relic,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF" ; Contains a lot of shared things and dialogue conversations of the Gerudo quest
@@ -418,7 +418,7 @@ data_TableOfCutsceneEventsSettings:
 .string "Npc_FaronHatago_001,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_FaronWoods001,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_FaronWoods003,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
-.string "Npc_FaronWoods006,FP_OFF,PAN_ON,HND_OFF,CTRL_OFF"
+.string "Npc_FaronWoods006,FP_ON,PAN_ON,HND_OFF,CTRL_OFF" ; Brigo on the bridge
 .string "Npc_FaronWoods007,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_FaronWoods008,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"
 .string "Npc_FaronWoods009,FP_ON,PAN_OFF,HND_OFF,CTRL_OFF"

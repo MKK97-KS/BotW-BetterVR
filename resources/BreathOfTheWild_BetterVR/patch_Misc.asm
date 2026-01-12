@@ -18,7 +18,7 @@ moduleMatches = 0x6267BFD0
 
 ; ==================================================================================
 ; make jump always jump twice as high to compensate for increased player gravity due to bug
-0x02CA2464 = bla import.coreinit.hook_OverwriteCameraParam
+;0x02CA2464 = bla import.coreinit.hook_OverwriteCameraParam
 
 
 ; player move speed, doesn't affect gravity

@@ -5,6 +5,8 @@
 std::mutex g_settingsMutex;
 data_VRSettingsIn g_settings = {};
 
+HWND CemuHooks::m_cemuTopWindow = NULL;
+HWND CemuHooks::m_cemuRenderWindow = NULL;
 uint64_t CemuHooks::s_memoryBaseAddress = 0;
 std::atomic_uint32_t CemuHooks::s_framesSinceLastCameraUpdate = 0;
 
@@ -20,6 +22,43 @@ bool CemuHooks::IsScreenOpen(ScreenId screen) {
 }
 
 std::unordered_set<ScreenId> prevEnabledScreens = {};
+
+void CemuHooks::InitWindowHandles() {
+    // find HWND that starts with Cemu in its title
+    struct EnumWindowsData {
+        DWORD cemuPid;
+        HWND outHwnd;
+    } enumData = { .cemuPid = GetCurrentProcessId(), .outHwnd = NULL };
+
+    EnumWindows([](HWND iteratedHwnd, LPARAM data) -> BOOL {
+        EnumWindowsData* enumData = (EnumWindowsData*)data;
+        DWORD currPid;
+        GetWindowThreadProcessId(iteratedHwnd, &currPid);
+        if (currPid == enumData->cemuPid) {
+            constexpr size_t bufSize = 256;
+            wchar_t buf[bufSize];
+            GetWindowTextW(iteratedHwnd, buf, bufSize);
+            if (wcsstr(buf, L"Cemu") != nullptr) {
+                enumData->outHwnd = iteratedHwnd;
+                return FALSE;
+            }
+        }
+        return TRUE;
+    },
+    (LPARAM)&enumData);
+    m_cemuTopWindow = enumData.outHwnd;
+
+    // find the most nested child window since that's the rendering window
+    HWND iteratedHwnd = m_cemuTopWindow;
+    while (true) {
+        HWND nextIteratedHwnd = FindWindowExW(iteratedHwnd, NULL, NULL, NULL);
+        if (nextIteratedHwnd == NULL) {
+            break;
+        }
+        iteratedHwnd = nextIteratedHwnd;
+    }
+    m_cemuRenderWindow = iteratedHwnd;
+}
 
 void CemuHooks::hook_UpdateSettings(PPCInterpreter_t* hCPU) {
     // Log::print("Updated settings!");

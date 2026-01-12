@@ -361,14 +361,6 @@ VkResult VRLayer::VkInstanceOverrides::CreateInstance(PFN_vkCreateInstance creat
     return result;
 }
 
-void VRLayer::VkInstanceOverrides::DestroyInstance(const vkroots::VkInstanceDispatch& pDispatch, VkInstance instance, const VkAllocationCallbacks* pAllocator) {
-    if (g_debugMessenger != VK_NULL_HANDLE && g_destroyDebugUtilsMessenger) {
-        g_destroyDebugUtilsMessenger(instance, g_debugMessenger, pAllocator);
-        g_debugMessenger = VK_NULL_HANDLE;
-    }
-    return pDispatch.DestroyInstance(instance, pAllocator);
-}
-
 
 VkResult VRLayer::VkInstanceOverrides::EnumeratePhysicalDevices(const vkroots::VkInstanceDispatch& pDispatch, VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices) {
     // Proceed to get all devices
@@ -638,8 +630,20 @@ VkResult VRLayer::VkInstanceOverrides::CreateDevice(const vkroots::VkPhysicalDev
     return result;
 }
 
+void VRLayer::VkInstanceOverrides::DestroyInstance(const vkroots::VkInstanceDispatch& pDispatch, VkInstance instance, const VkAllocationCallbacks* pAllocator) {
+    if (g_debugMessenger != VK_NULL_HANDLE && g_destroyDebugUtilsMessenger) {
+        g_destroyDebugUtilsMessenger(instance, g_debugMessenger, pAllocator);
+        g_debugMessenger = VK_NULL_HANDLE;
+    }
+    PFN_vkDestroyInstance ptr_vkDestroyInstance = (PFN_vkDestroyInstance)pDispatch.GetInstanceProcAddr(instance, "vkDestroyInstance");
+    vkroots::tables::DestroyDispatchTable(instance);
+    ptr_vkDestroyInstance(instance, pAllocator);
+}
+
 void VRLayer::VkDeviceOverrides::DestroyDevice(const vkroots::VkDeviceDispatch& pDispatch, VkDevice device, const VkAllocationCallbacks* pAllocator) {
-    return pDispatch.DestroyDevice(device, pAllocator);
+    PFN_vkDestroyDevice ptr_vkDestroyDeviceFn = (PFN_vkDestroyDevice)pDispatch.GetDeviceProcAddr(device, "vkDestroyDevice");
+    vkroots::tables::DestroyDispatchTable(device);
+    ptr_vkDestroyDeviceFn(device, pAllocator);
 }
 
 VKROOTS_DEFINE_LAYER_INTERFACES(VRLayer::VkInstanceOverrides, VRLayer::VkDeviceOverrides);

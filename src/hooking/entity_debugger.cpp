@@ -456,7 +456,7 @@ void EntityDebugger::DrawEntityInspector() {
                             uint32_t data = std::get<MemoryRange>(value.value).start;
                             uint32_t size = std::get<MemoryRange>(value.value).end - std::get<MemoryRange>(value.value).start;
                             std::string windowName = std::format("{} at {:08X} with size of {:08X}", value.value_name, value.value_address, size);
-                            mem_edit->DrawWindow(windowName.c_str(), (ImU8*)CemuHooks::GetMemoryBaseAddress()+(size_t)data, size, 0x0);
+                            mem_edit->DrawWindow(windowName.c_str(), (ImU8*)CemuHooks::s_memoryBaseAddress + (size_t)data, size, 0x0);
                             if (mem_edit->Open == false) {
                                 value.expanded = false;
                             }

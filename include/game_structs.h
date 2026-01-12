@@ -167,8 +167,8 @@ enum ActorFlags3 : int32_t {
 
 struct ActorWiiU : BaseProc {
     PADDED_BYTES(0xEC, 0xF0);
-    uint32_t physicsMainBodyPtr; // 0xF4
-    uint32_t physicsTgtBodyPtr; // 0xF8
+    BEType<uint32_t> physicsMainBodyPtr; // 0xF4
+    BEType<uint32_t> physicsTgtBodyPtr;  // 0xF8
     uint8_t unk_FC[0x1F8 - 0xFC];
     BEMatrix34 mtx;
     uint32_t physicsMtxPtr;
@@ -225,6 +225,7 @@ static_assert(offsetof(ActorWiiU, gsysModelPtr) == 0x330, "ActorWiiU.gsysModelPt
 static_assert(offsetof(ActorWiiU, modelOpacity) == 0x33C, "ActorWiiU.modelOpacity offset mismatch");
 static_assert(offsetof(ActorWiiU, modelOpacityRelated) == 0x340, "ActorWiiU.modelOpacityRelated offset mismatch");
 static_assert(offsetof(ActorWiiU, opacityOrDoFlushOpacityToGPU) == 0x436, "ActorWiiU.opacityOrDoFlushOpacityToGPU offset mismatch");
+static_assert(offsetof(ActorWiiU, velocity) == 0x25C, "ActorWiiU.velocity offset mismatch");
 static_assert(sizeof(ActorWiiU) == 0x53C, "ActorWiiU size mismatch");
 
 struct DynamicActor : ActorWiiU {
