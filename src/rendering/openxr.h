@@ -131,6 +131,15 @@ public:
         std::chrono::steady_clock::time_point prevent_inputs_time;
         bool prevent_grab_inputs = false;
         std::chrono::steady_clock::time_point prevent_grab_time;
+
+        //Pull gesture
+        bool right_hand_was_over_left_shoulder_slot = false;
+        bool right_hand_was_over_right_shoulder_slot = false;
+        bool right_hand_was_over_left_waist_slot = false;
+        bool left_hand_was_over_left_shoulder_slot = false;
+        bool left_hand_was_over_right_shoulder_slot = false;
+        bool left_hand_was_over_left_waist_slot = false;
+
         EquipType right_equip_type = EquipType::None;
         EquipType left_equip_type = EquipType::None;
         EquipType previous_right_equip_type = EquipType::None;

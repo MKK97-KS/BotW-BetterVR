@@ -121,7 +121,7 @@ HandGestureState calculateHandGesture(
 
             gesture.magnesisForwardAmount = remapSigned(forwardAmount);
             gesture.magnesisVerticalAmount = remapSigned(verticalAmount);
-            Log::print<INFO>("magnesisForwardAmount frames skip : {}", gameState.magnesis_forward_frames_interval);
+            //Log::print<INFO>("magnesisForwardAmount frames skip : {}", gameState.magnesis_forward_frames_interval);
             if (gameState.magnesis_forward_frames_interval > 0) {
                 gesture.magnesisForwardAmount = 0.0f;
             }
@@ -131,9 +131,7 @@ HandGestureState calculateHandGesture(
             }
             
             gameState.magnesis_forward_frames_interval--;
-            Log::print<INFO>("gesture.magnesisForwardAmount  : {}", gesture.magnesisForwardAmount);
-            //
-            //Log::print<INFO>("gesture.magnesisVerticalAmount  : {}", gesture.magnesisVerticalAmount);
+            //Log::print<INFO>("gesture.magnesisForwardAmount  : {}", gesture.magnesisForwardAmount);
         }
     }
 
@@ -298,6 +296,31 @@ void handleLeftHandInGameInput(
         return;
     }
 
+    // Pull gesture
+    if (isCurrentGrabPressed) {
+        if (gameState.left_hand_was_over_left_shoulder_slot) {
+            if (gameState.left_equip_type != EquipType::Bow) {
+                buttonHold |= VPAD_BUTTON_ZR;
+                gameState.last_item_held = EquipType::Bow;
+            }
+        }
+        else if (gameState.left_hand_was_over_right_shoulder_slot)
+            {
+            if (gameState.right_equip_type != EquipType::Melee) {
+                buttonHold |= VPAD_BUTTON_Y;
+                gameState.last_item_held = EquipType::Melee;
+            }
+        }
+        else if (gameState.left_hand_was_over_left_waist_slot)
+        {
+            if (gameState.left_equip_type != EquipType::Rune) {
+                buttonHold |= VPAD_BUTTON_L;
+                gameState.last_item_held = EquipType::Rune;
+            }
+        }
+    }
+    
+
     // Left hand item drop broken rn, makes the game thinks link is empty handed in right hand too.
     // Waiting for a fix before uncommenting
     //if (isHandOverRightWaistSlot(leftGesture))
@@ -431,6 +454,7 @@ void handleRightHandInGameInput(
             if (!gameState.right_hand_position_stored) {
                 gameState.stored_right_hand_position = ToGLM(inputs.inGame.poseLocation[1].pose.position);
                 gameState.right_hand_position_stored = true;
+                rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFall);
             }
 
             if (gameState.right_hand_position_stored) {
@@ -439,6 +463,29 @@ void handleRightHandInGameInput(
                     buttonHold |= VPAD_BUTTON_UP;
                 else if (rightGesture.magnesisForwardAmount < 0.0f)
                     buttonHold |= VPAD_BUTTON_DOWN;
+            }
+        }
+
+        // Pull gesture
+        if (gameState.right_hand_was_over_left_shoulder_slot) {
+            if (gameState.left_equip_type != EquipType::Bow) {
+                rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFall);
+                buttonHold |= VPAD_BUTTON_ZR;
+                gameState.last_item_held = EquipType::Bow;
+            }
+        }
+        else if (gameState.right_hand_was_over_right_shoulder_slot) {
+            if (gameState.right_equip_type != EquipType::Melee) {
+                rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFall);
+                buttonHold |= VPAD_BUTTON_Y;
+                gameState.last_item_held = EquipType::Melee;
+            }
+        }
+        else if (gameState.right_hand_was_over_left_waist_slot) {
+            if (gameState.left_equip_type != EquipType::Rune) {
+                rumbleMgr->enqueueInputsRumbleCommand(rightRumbleFall);
+                buttonHold |= VPAD_BUTTON_L;
+                gameState.last_item_held = EquipType::Rune;
             }
         }
     }
@@ -861,6 +908,13 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     gameState.right_equip_type = EquipType::None; // updated in hook_ChangeWeaponMtx
     gameState.left_equip_type_set_this_frame = false; // updated in hook_ChangeWeaponMtx
     gameState.right_equip_type_set_this_frame = false; // updated in hook_ChangeWeaponMtx
+    // Pull gesture
+    gameState.right_hand_was_over_left_shoulder_slot = isHandOverLeftShoulderSlot(rightGesture);
+    gameState.right_hand_was_over_right_shoulder_slot = isHandOverRightShoulderSlot(rightGesture);
+    gameState.right_hand_was_over_left_waist_slot = isHandOverLeftWaistSlot(rightGesture);
+    gameState.left_hand_was_over_left_shoulder_slot = isHandOverLeftShoulderSlot(leftGesture);
+    gameState.left_hand_was_over_right_shoulder_slot = isHandOverRightShoulderSlot(leftGesture);
+    gameState.left_hand_was_over_left_waist_slot = isHandOverLeftWaistSlot(leftGesture);
 
     VRManager::instance().XR->m_gameState.store(gameState);
     VRManager::instance().XR->m_input.store(inputs);
