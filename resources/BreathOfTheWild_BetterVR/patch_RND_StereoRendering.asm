@@ -389,21 +389,6 @@ blr
 0x03415584 = requestLODMgrModelsAndUpdateDebugInput:
 0x03414D74 = runActorUpdateStuff:
 
-; custom_PostCalc:
-; mflr r0
-; stw r0, 0x04(r1)
-; stwu r1, -0x18(r1)
-; lwz r0, 0x00(r4)
-; lis r3, GameScene__postCalc@ha
-; addi r3, r3, GameScene__postCalc@l
-; lwz r3, 0x08(r3)
-; addi r4, r1, 0x08
-; stw r0, 0x08(r1)
-; bl GameScene__postCalc
-; lwz r0, 0x1C(r1)
-; mtlr r0
-; addi r1, r1, 0x18
-; blr
 
 0x10463E64 = GameScene_sBinderStatus:
 0x02C4FAD4 = StageBinder_getStage:
@@ -417,36 +402,56 @@ stw r3, 0x1C(r1)
 stw r4, 0x18(r1)
 stw r5, 0x14(r1)
 stw r6, 0x10(r1)
+stw r7, 0x0C(r1)
 
 lwz r3, 0x1C(r1)
 lwz r3, 0x200(r3)
 cmpwi r3, 0
 beq skip_custom_PostCalc
 
-lis r3, GameScene_sBinderStatus@ha
-lwz r3, GameScene_sBinderStatus@l(r3)
-cmpwi r3, 2
+lis r6, GameScene_sBinderStatus@ha
+lwz r6, GameScene_sBinderStatus@l(r6)
+cmpwi r6, 2
 beq skip_custom_PostCalc
 
-lis r3, StageBinder_getStage@ha
-addi r3, r3, StageBinder_getStage@l
-mtctr r3
-lwz r3, 0x1C(r1)
+; get stage
+lis r6, StageBinder_getStage@ha
+addi r6, r6, StageBinder_getStage@l
+mtctr r6
+;lwz r3, 0x1C(r1)
 bctrl ; bl StageBinder_getStage
 
+; check if stage is valid
 cmpwi r3, 0
 beq skip_custom_PostCalc
 
-lis r8, stru_101C1474@ha
-addi r8, r8, stru_101C1474@l
-stw r8, 8(r1)
-lwz r9, 0(r3)
-lwz r0, 0x4C(r9)
-mtctr r0
-addi r4, r1, 8
-bctrl ; bl Stage__postCalc
+lis r5, stru_101C1474@ha
+addi r5, r5, stru_101C1474@l
+stw r5, 0x08(r1) ; store callback vtable on stack
+addi r4, r1, 0x08
+
+0x02C44944 = MainFieldDungeonStage__postCalc:
+lwz r6, 0x00(r3) ; stage->vtable
+lwz r6, 0x4C(r6) ; get Stage::postCalc function pointer
+lis r7, MainFieldDungeonStage__postCalc@ha
+addi r7, r7, MainFieldDungeonStage__postCalc@l
+cmpw r6, r7
+bne skip_custom_PostCalc
+
+; run ONE function of the stage's postCalc
+0x02C42FF0 = BackgroundCamera_postCalc:
+lis r7, BackgroundCamera_postCalc@ha
+addi r7, r7, BackgroundCamera_postCalc@l
+mtctr r7
+bctrl ; bl BackgroundCamera::postCalc
+
+; lwz r6, 0x00(r3) ; stage->vtable
+; lwz r6, 0x4C(r6) ; get Stage::postCalc function pointer
+; mtctr r6
+; bctrl ; bl Stage::postCalc
 
 skip_custom_PostCalc:
+lwz r7, 0x0C(r1)
 lwz r6, 0x10(r1)
 lwz r5, 0x14(r1)
 lwz r4, 0x18(r1)
@@ -459,10 +464,10 @@ blr
 
 custom_GameScene_calcAndRunStateMachine:
 mflr r0
-stwu r1, -0x10(r1)
-stw r0, 0x14(r1)
-stw r3, 0x0C(r1)
-stw r4, 0x08(r1)
+stwu r1, -0x20(r1)
+stw r0, 0x24(r1)
+stw r3, 0x0C(r1) ; stores System*
+stw r4, 0x08(r1) ; stores Framework*
 stw r5, 0x04(r1)
 
 lis r3, currentEyeSide@ha
@@ -591,34 +596,44 @@ lbz r3, byte_10463E7C@l(r3)
 ; run gameScene::calcGraphicsStuff(*a2)
 0x03416590 = gameScene__calcGraphicsStuff:
 
-lis r3, gameScene__calcGraphicsStuff@ha
-addi r3, r3, gameScene__calcGraphicsStuff@l
-mtctr r3
-lwz r3, 0x0C(r1)
-lwz r4, 0x08(r1)
-lwz r5, 0x04(r1)
-lwz r3, 0x0(r4)
+;lis r3, gameScene__calcGraphicsStuff@ha
+;addi r3, r3, gameScene__calcGraphicsStuff@l
+;mtctr r3
+;lwz r3, 0x0C(r1)
+;lwz r4, 0x08(r1)
+;lwz r5, 0x04(r1)
+;lwz r3, 0x0(r4)
+;;bctrl
+;
+;lis r3, uking__frm__System__postCalc@ha
+;addi r3, r3, uking__frm__System__postCalc@l
+;mtctr r3
+;lwz r3, 0x0C(r1)
+;lwz r4, 0x08(r1)
+;lwz r5, 0x04(r1)
 ;bctrl
 
-
-lis r3, uking__frm__System__postCalc@ha
-addi r3, r3, uking__frm__System__postCalc@l
-mtctr r3
+; load system and framework pointers
 lwz r3, 0x0C(r1)
 lwz r4, 0x08(r1)
 lwz r5, 0x04(r1)
-bctrl
+; store callback pointer
+lwz r5, 0x0(r4)
+addi r4, r1, 0x18
+stw r5, 0x18(r1)
 
-;bl custom_PostCalc
+lwz r3, 0x08(r3) ; uking::frm::Scene->gameScene
+
+bl custom_PostCalc
 
 
 continuecalcAndRunStateMachine__run:
-lwz r0, 0x14(r1)
+lwz r0, 0x24(r1)
 mtlr r0
 lwz r3, 0x0C(r1)
 lwz r4, 0x08(r1)
 lwz r5, 0x04(r1)
-addi r1, r1, 0x10
+addi r1, r1, 0x20
 blr
 
 ; hook the precall to run our custom code which runs the pre, run and post calc
