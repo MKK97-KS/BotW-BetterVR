@@ -283,7 +283,6 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
 
     // reset face bones so they don't react to vr-driven poses
     if (isFaceBone(boneName)) {
-        return;
         BEMatrix34 finalMtx;
         finalMtx.setPos(glm::fvec3());
         finalMtx.setRotLE(glm::identity<glm::fquat>());
