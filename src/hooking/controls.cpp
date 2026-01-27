@@ -640,9 +640,11 @@ void handleMenuInput(
     }
 
     buttonHold |= mapButton(inputs.inMenu.select, VPAD_BUTTON_A);
-    buttonHold |= mapButton(inputs.inMenu.hold, VPAD_BUTTON_X);
     buttonHold |= mapButton(inputs.inMenu.leftTrigger, VPAD_BUTTON_L);
     buttonHold |= mapButton(inputs.inMenu.rightTrigger, VPAD_BUTTON_R);
+
+    if (inputs.inMenu.holdState.lastEvent == ButtonState::Event::ShortPress)
+        buttonHold |= VPAD_BUTTON_X;
 
     // handle optional quick rune menu
     if (gameState.rune_menu_open) {
@@ -729,8 +731,9 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     // toggleable help menu
     auto& isMenuOpen = VRManager::instance().XR->m_isMenuOpen;
 
-    if (inputs.shared.modMenuState.lastEvent == ButtonState::Event::ShortPress) {
+    if (inputs.shared.modMenuState.lastEvent == ButtonState::Event::LongPress && inputs.shared.modMenuState.longFired_actedUpon) {
         isMenuOpen = !isMenuOpen;
+        inputs.shared.modMenuState.longFired_actedUpon = false;
     }
 
     // allow the gamepad inputs to control the imgui overlay

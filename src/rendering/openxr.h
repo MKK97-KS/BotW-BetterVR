@@ -96,6 +96,7 @@ public:
             XrActionStateBoolean back;
             XrActionStateBoolean sort;
             XrActionStateBoolean hold;
+            ButtonState holdState;
 
             XrActionStateBoolean leftGrip;
             XrActionStateBoolean rightGrip;
@@ -208,7 +209,7 @@ private:
     XrAction m_jumpAction = XR_NULL_HANDLE;
     XrAction m_run_interactAction = XR_NULL_HANDLE;
     XrAction m_useRune_dpadMenu_Action = XR_NULL_HANDLE;
-    XrAction m_modMenuAction = XR_NULL_HANDLE; //imgui mod menu
+    XrAction m_inGame_modMenuAction = XR_NULL_HANDLE; //imgui mod menu
 
     XrAction m_useLeftItemAction = XR_NULL_HANDLE;
     XrAction m_useRightItemAction = XR_NULL_HANDLE;
@@ -232,7 +233,7 @@ private:
     XrAction m_leftTriggerAction= XR_NULL_HANDLE;
     XrAction m_rightTriggerAction = XR_NULL_HANDLE;
 
-    //XrAction m_inMenu_mapAction = XR_NULL_HANDLE; // menu button
+    XrAction m_inMenu_modMenuAction = XR_NULL_HANDLE; //imgui mod menu
     XrAction m_inMenu_inventory_mapAction = XR_NULL_HANDLE; 
 
     std::unique_ptr<RND_Renderer> m_renderer;

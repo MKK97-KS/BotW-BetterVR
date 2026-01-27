@@ -286,7 +286,7 @@ void OpenXR::CreateActions() {
         createAction(m_gameplayActionSet, "aim_pose", "Aim Pose", XR_ACTION_TYPE_POSE_INPUT, m_inGameAimPoseAction);
         createAction(m_gameplayActionSet, "move", "Move", XR_ACTION_TYPE_VECTOR2F_INPUT, m_moveAction);
         createAction(m_gameplayActionSet, "camera", "Camera Rotation", XR_ACTION_TYPE_VECTOR2F_INPUT, m_cameraAction);
-        createAction(m_gameplayActionSet, "modmenu", "Mod Menu", XR_ACTION_TYPE_BOOLEAN_INPUT, m_modMenuAction);
+        createAction(m_gameplayActionSet, "ingame_modmenu", "Mod Menu", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inGame_modMenuAction);
 
         createAction(m_gameplayActionSet, "grab_interact", "Interact / Pick up objects from floor or weapon from body slots", XR_ACTION_TYPE_FLOAT_INPUT, m_grab_interactAction);
         createAction(m_gameplayActionSet, "jump", "Jump", XR_ACTION_TYPE_BOOLEAN_INPUT, m_jumpAction);
@@ -324,7 +324,7 @@ void OpenXR::CreateActions() {
         createAction(m_menuActionSet, "righttrigger", "Right Trigger", XR_ACTION_TYPE_BOOLEAN_INPUT, m_rightTriggerAction);
 
         createAction(m_menuActionSet, "inmenu_inventory_map", "Close Inventory (Wii U - Start Button) - Close Map (Wii U - Select Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inMenu_inventory_mapAction);
-
+        createAction(m_menuActionSet, "inmenu_modmenu", "Mod Menu", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inMenu_modMenuAction);
     }
 
     {
@@ -368,7 +368,7 @@ void OpenXR::CreateActions() {
             XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
             XrActionSuggestedBinding{ .action = m_run_interactAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
             XrActionSuggestedBinding{ .action = m_useRune_dpadMenu_Action, .binding = GetXRPath("/user/hand/left/input/y/click") },
-            XrActionSuggestedBinding{ .action = m_modMenuAction, .binding = GetXRPath("/user/hand/left/input/x/click") },
+            XrActionSuggestedBinding{ .action = m_inGame_modMenuAction, .binding = GetXRPath("/user/hand/left/input/x/click") },
 
             XrActionSuggestedBinding{ .action = m_useLeftItemAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_useRightItemAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
@@ -395,6 +395,7 @@ void OpenXR::CreateActions() {
             XrActionSuggestedBinding{ .action = m_leftTriggerAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_rightTriggerAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_inMenu_inventory_mapAction, .binding = GetXRPath("/user/hand/right/input/thumbstick/click") },
+            XrActionSuggestedBinding{ .action = m_inMenu_modMenuAction, .binding = GetXRPath("/user/hand/left/input/x/click") },
         };
         XrInteractionProfileSuggestedBinding suggestedBindingsInfo = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
         suggestedBindingsInfo.interactionProfile = GetXRPath("/interaction_profiles/oculus/touch_controller");
@@ -418,7 +419,7 @@ void OpenXR::CreateActions() {
             XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
             XrActionSuggestedBinding{ .action = m_run_interactAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
             XrActionSuggestedBinding{ .action = m_useRune_dpadMenu_Action, .binding = GetXRPath("/user/hand/left/input/b/click") },
-            XrActionSuggestedBinding{ .action = m_modMenuAction, .binding = GetXRPath("/user/hand/left/input/a/click") },
+            XrActionSuggestedBinding{ .action = m_inGame_modMenuAction, .binding = GetXRPath("/user/hand/left/input/a/click") },
 
             XrActionSuggestedBinding{ .action = m_useLeftItemAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_useRightItemAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
@@ -445,6 +446,7 @@ void OpenXR::CreateActions() {
             XrActionSuggestedBinding{ .action = m_leftTriggerAction, .binding = GetXRPath("/user/hand/left/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_rightTriggerAction, .binding = GetXRPath("/user/hand/right/input/trigger/value") },
             XrActionSuggestedBinding{ .action = m_inMenu_inventory_mapAction, .binding = GetXRPath("/user/hand/right/input/thumbstick/click") },
+            XrActionSuggestedBinding{ .action = m_inMenu_modMenuAction, .binding = GetXRPath("/user/hand/left/input/a/click") },
         };
         XrInteractionProfileSuggestedBinding suggestedBindingsInfo = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
         suggestedBindingsInfo.interactionProfile = GetXRPath("/interaction_profiles/valve/index_controller");
@@ -581,18 +583,19 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
     auto& inventory_mapButtonState = newState.shared.inventory_mapState;
     if (inventory_mapAction.isActive == XR_TRUE) {
         auto buttonPressed = inventory_mapAction.currentState == XR_TRUE;
-        CheckButtonState(buttonPressed, inventory_mapButtonState);
+        CheckButtonState(buttonPressed, inventory_mapButtonState); 
     }
 
     XrActionStateGetInfo getModMenuInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
-    getModMenuInfo.action = m_modMenuAction;
+    getModMenuInfo.action = newState.shared.in_game ? m_inGame_modMenuAction : m_inMenu_modMenuAction;
     getModMenuInfo.subactionPath = XR_NULL_PATH;
-    newState.shared.modMenu = { XR_TYPE_ACTION_STATE_BOOLEAN };
-    checkXRResult(xrGetActionStateBoolean(m_session, &getModMenuInfo, &newState.shared.modMenu), "Failed to get crouch and map action value!");
+    auto& modMenuAction = newState.shared.modMenu;
+    modMenuAction = { XR_TYPE_ACTION_STATE_BOOLEAN };
+    checkXRResult(xrGetActionStateBoolean(m_session, &getModMenuInfo, &modMenuAction), "Failed to get mod menu action value!");
 
     auto& modMenuButtonState = newState.shared.modMenuState;
-    if (newState.shared.modMenu.isActive == XR_TRUE) {
-        auto buttonPressed = newState.shared.modMenu.currentState == XR_TRUE;
+    if (modMenuAction.isActive == XR_TRUE) {
+        auto buttonPressed = modMenuAction.currentState == XR_TRUE;
         CheckButtonState(buttonPressed, modMenuButtonState);
     }
 
@@ -627,6 +630,12 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
         getHoldInfo.action = m_holdAction;
         newState.inMenu.hold = { XR_TYPE_ACTION_STATE_BOOLEAN };
         checkXRResult(xrGetActionStateBoolean(m_session, &getHoldInfo, &newState.inMenu.hold), "Failed to get hold action value!");
+
+        auto& holdButtonState = newState.inMenu.holdState;
+        if (newState.inMenu.hold.isActive == XR_TRUE) {
+            auto buttonPressed = newState.inMenu.hold.currentState == XR_TRUE;
+            CheckButtonState(buttonPressed, holdButtonState);
+        }
 
         XrActionStateGetInfo getLeftGripInfo = { XR_TYPE_ACTION_STATE_GET_INFO };
         getLeftGripInfo.action = m_leftGripAction;
