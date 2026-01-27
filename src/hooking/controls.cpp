@@ -65,7 +65,7 @@ HandGestureState calculateHandGesture(
     glm::vec3 flatForward = glm::normalize(glm::vec3(headsetForward.x, 0.0f, headsetForward.z));
     glm::vec3 flatHandOffset = glm::vec3(headToHand.x, 0.0f, headToHand.z);
     
-    constexpr float WAIST_BEHIND_OFFSET = 0.0f; //0.15f
+    constexpr float WAIST_BEHIND_OFFSET = -0.05f; //0.15f
     float flatForwardDot = glm::dot(flatForward, flatHandOffset) + WAIST_BEHIND_OFFSET;
     gesture.isBehindHeadWithWaistOffset = (flatForwardDot < 0.0f);
     
@@ -84,7 +84,7 @@ HandGestureState calculateHandGesture(
     gesture.isCloseToMouth = (glm::length2(headToHand) < MOUTH_RADIUS_SQ);
     
     // Check distance from waist (rough estimate)
-    glm::fvec3 waistPos = headsetPos - glm::fvec3(0.0f, 0.5f, 0.0f);
+    glm::fvec3 waistPos = headsetPos - glm::fvec3(0.0f, 0.45f, 0.0f);
     gesture.isCloseToWaist = (handPos.y < waistPos.y);
 
     // Check hand height for shield (rough estimate)
