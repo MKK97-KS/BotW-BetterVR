@@ -592,11 +592,15 @@ std::pair<glm::vec3, glm::fquat> CemuHooks::CalculateVRWorldPose(const BESeadLoo
     // in-game camera
     glm::mat4x3 viewMatrix = camera.mtx.getLEMatrix();
     glm::mat4 worldGame = glm::inverse(glm::mat4(viewMatrix));
-    glm::vec3 basePos = s_wsCameraPosition;
-    glm::quat baseRot = s_wsCameraRotation;
-    auto [swing, baseYaw] = swingTwistY(baseRot);
+    glm::vec3 basePos = glm::vec3(worldGame[3]);
+    glm::quat baseRot = glm::quat_cast(worldGame);
 
-    if (CemuHooks::IsFirstPerson()) {
+    // overwrite with our stored camera pos/rot
+    basePos = s_wsCameraPosition;
+    baseRot = s_wsCameraRotation;
+
+    auto [swing, baseYaw] = swingTwistY(baseRot);
+    if (IsFirstPerson()) {
         // take link's direction, then rotate the headset position
         BEMatrix34 playerMtx = {};
         readMemory(s_playerMtxAddress, &playerMtx);
@@ -613,7 +617,6 @@ std::pair<glm::vec3, glm::fquat> CemuHooks::CalculateVRWorldPose(const BESeadLoo
         }
 
         basePos = playerPos;
-
         if (auto eventSettings = GetFirstPersonSettingsForActiveEvent()) {
             if (eventSettings->ignoreCameraRotation) {
                 glm::fquat playerRot = playerMtx.getRotLE();
@@ -638,12 +641,11 @@ std::pair<glm::vec3, glm::fquat> CemuHooks::CalculateVRWorldPose(const BESeadLoo
     return { newPos, newRot };
 }
 
-constexpr float VISIBILITY_CHECK_BUFFER = 1.5f;
 void CemuHooks::hook_CheckIfCameraCanSeePos(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
     if (VRManager::instance().XR->GetRenderer() == nullptr) {
-        hCPU->gpr[3] = 1;
+        hCPU->gpr[3] = 0;
         return;
     }
 
@@ -656,19 +658,18 @@ void CemuHooks::hook_CheckIfCameraCanSeePos(PPCInterpreter_t* hCPU) {
     BESeadLookAtCamera camera = {};
     readMemory(camPtr, &camera);
 
-    struct {
-        uint32_t x, y, z;
-    } posRaw;
-    readMemory(posPtr, &posRaw);
+    //uint32_t mainProjectionPtr = hCPU->gpr[5];
+    //BESeadPerspectiveProjection mainProjection = {};
+    //readMemory(mainProjectionPtr, &mainProjection);
+    //uint32_t altProjectionPtr = hCPU->gpr[6];
+    //BESeadPerspectiveProjection altProjection = {};
+    //readMemory(altProjectionPtr, &altProjection);
 
-    auto swapFloat = [](uint32_t val) -> float {
-        uint32_t swapped = ((val & 0xFF) << 24) | ((val & 0xFF00) << 8) | ((val & 0xFF0000) >> 8) | ((val & 0xFF000000) >> 24);
-        float f;
-        memcpy(&f, &swapped, 4);
-        return f;
-    };
+    //Log::print<INFO>("Main Projection{}: {}", hCPU->gpr[0] == 0 ? " yes " : " no ", mainProjection);
+    //Log::print<INFO>("Alt Projection{}: {}", hCPU->gpr[0] == 1 ? " yes " : " no ", altProjection);
 
-    glm::vec3 center(swapFloat(posRaw.x), swapFloat(posRaw.y), swapFloat(posRaw.z));
+    BEVec3 center;
+    readMemory(posPtr, &center);
 
     Frustum frustum;
     bool visible = false;
@@ -677,19 +678,23 @@ void CemuHooks::hook_CheckIfCameraCanSeePos(PPCInterpreter_t* hCPU) {
         OpenXR::EyeSide side = (i == 0) ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
         if (auto fovOpt = VRManager::instance().XR->GetRenderer()->GetFOV(side)) {
             auto [pos, rot] = CalculateVRWorldPose(camera, side);
+
+            // pull the camera backwards a bit to account for it being a third-person game that encompassed a bigger area
+            pos += rot * glm::vec3(0.0f, 0.0f, 1.0f);
+
             glm::mat4 view = glm::inverse(glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot));
-            glm::mat4 proj = calculateProjectionMatrix(nearClip, farClip, fovOpt.value());
+            glm::mat4 proj = glm::transpose(calculateProjectionMatrix(nearClip, farClip, fovOpt.value()));
             glm::mat4 vp = proj * view;
 
             frustum.update(vp);
-            if (frustum.checkSphere(center, radius+VISIBILITY_CHECK_BUFFER)) {
+            if (frustum.checkSphere(center.getLE(), radius)) {
                 visible = true;
                 break;
             }
         }
     }
 
-    Log::print<INFO>("Checking visibility of {} (rad = {}, near = {}, far = {}): {}", center, radius, nearClip, farClip, visible ? "visible" : "invisible");
+    Log::print<PPC>("Checking visibility of {} (rad = {}, near = {}, far = {}): {}", center, radius, nearClip, farClip, visible ? "visible" : "invisible");
 
     hCPU->gpr[3] = visible ? 1 : 0;
 }
